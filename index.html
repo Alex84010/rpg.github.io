@@ -365,19 +365,20 @@
 
         // ===== PRÉCHARGEMENT =====
         function preload() {
-            // Charger les sprites (vous mettrez vos vraies images ici)
+            // PERSONNAGE : 272×288 pixels (4 colonnes × 4 rangées)
+            // Chaque frame = 68×72 pixels
             this.load.spritesheet('player', 'assets/player.png', {
-                frameWidth: 32,
-                frameHeight: 32
+                frameWidth: 68,   // 272 ÷ 4 = 68
+                frameHeight: 72   // 288 ÷ 4 = 72
             });
             
-            // Tuiles
+            // ASSETS : 2048×2048 pixels (tuiles et NPCs)
             this.load.image('grass', 'assets/grass.png');
             this.load.image('path', 'assets/path.png');
             this.load.image('water', 'assets/water.png');
             this.load.image('tree', 'assets/tree.png');
             
-            // NPCs
+            // NPCs - aussi 2048×2048
             this.load.image('npc1', 'assets/npc1.png');
             this.load.image('npc2', 'assets/npc2.png');
             this.load.image('npc3', 'assets/npc3.png');
@@ -385,14 +386,18 @@
 
         // ===== CRÉATION =====
         function create() {
-            // Créer la carte
+            // Créer la carte (tuiles de 2048px, donc moins de tuiles)
             createMap(this);
             
-            // Créer le joueur
+            // Créer le joueur (taille ajustée pour 68×72)
             player = this.physics.add.sprite(400, 300, 'player', 0);
             player.setCollideWorldBounds(true);
             
-            // Animations
+            // Ajuster la taille de collision du joueur
+            player.setSize(60, 60);
+            player.setOffset(4, 12);
+            
+            // Animations (16 frames au total, 4×4)
             this.anims.create({
                 key: 'walk-down',
                 frames: this.anims.generateFrameNumbers('player', { start: 0, end: 3 }),
@@ -431,67 +436,69 @@
             
             // Caméra
             this.cameras.main.startFollow(player);
-            this.cameras.main.setBounds(0, 0, 1600, 1200);
+            this.cameras.main.setBounds(0, 0, 10240, 7680); // Carte ajustée
         }
 
         function createMap(scene) {
-            // Herbe partout
-            for (let y = 0; y < 1200; y += 32) {
-                for (let x = 0; x < 1600; x += 32) {
-                    scene.add.image(x, y, 'grass').setOrigin(0);
+            // Carte avec tuiles de 2048×2048 (beaucoup moins de tuiles)
+            // 5 tuiles en largeur × 4 tuiles en hauteur = 10240×8192
+            
+            // Herbe partout (5×4 tuiles)
+            for (let y = 0; y < 4; y++) {
+                for (let x = 0; x < 5; x++) {
+                    const tile = scene.add.image(x * 2048, y * 2048, 'grass').setOrigin(0);
+                    tile.setDisplaySize(2048, 2048);
                 }
             }
             
-            // Chemin central
-            for (let y = 0; y < 1200; y += 32) {
-                for (let x = 700; x < 900; x += 32) {
-                    scene.add.image(x, y, 'path').setOrigin(0);
-                }
+            // Chemin central (1 tuile de large)
+            for (let y = 0; y < 4; y++) {
+                const tile = scene.add.image(2 * 2048, y * 2048, 'path').setOrigin(0);
+                tile.setDisplaySize(2048, 2048);
             }
             
-            // Lac
-            for (let y = 400; y < 600; y += 32) {
-                for (let x = 200; x < 500; x += 32) {
-                    const water = scene.add.image(x, y, 'water').setOrigin(0);
-                    scene.physics.add.existing(water, true);
-                    scene.physics.add.collider(player, water);
-                }
-            }
+            // Lac (1 tuile)
+            const water = scene.add.image(0, 2048, 'water').setOrigin(0);
+            water.setDisplaySize(2048, 2048);
+            scene.physics.add.existing(water, true);
+            scene.physics.add.collider(player, water);
             
-            // Arbres (bordures)
-            for (let x = 0; x < 1600; x += 64) {
-                addTree(scene, x, 0);
-                addTree(scene, x, 1170);
+            // Arbres (bordures - plus espacés)
+            for (let x = 0; x < 5; x++) {
+                addTree(scene, x * 2048, 0);
+                addTree(scene, x * 2048, 3 * 2048);
             }
-            for (let y = 0; y < 1200; y += 64) {
-                addTree(scene, 0, y);
-                addTree(scene, 1570, y);
+            for (let y = 1; y < 3; y++) {
+                addTree(scene, 0, y * 2048);
+                addTree(scene, 4 * 2048, y * 2048);
             }
         }
 
         function addTree(scene, x, y) {
             const tree = scene.add.image(x, y, 'tree').setOrigin(0);
+            tree.setDisplaySize(2048, 2048);
             scene.physics.add.existing(tree, true);
             scene.physics.add.collider(player, tree);
         }
 
         function createNPCs(scene) {
             const npcData = [
-                { x: 800, y: 200, sprite: 'npc1', dialog: [
+                { x: 2500, y: 1500, sprite: 'npc1', dialog: [
                     "Bonjour ! Bienvenue dans le monde des monstres !",
                     "Attention aux hautes herbes !"
                 ]},
-                { x: 1000, y: 400, sprite: 'npc2', dialog: [
+                { x: 5000, y: 3000, sprite: 'npc2', dialog: [
                     "Pour devenir champion, il faut 8 badges !",
                     "Bonne chance !"
                 ]},
-                { x: 600, y: 700, sprite: 'npc3', dialog: [
+                { x: 3500, y: 5000, sprite: 'npc3', dialog: [
                     "J'adore les monstres de type feu ! 🔥"
                 ]}
             ];
             
             npcData.forEach(data => {
                 const npc = scene.physics.add.sprite(data.x, data.y, data.sprite);
+                npc.setDisplaySize(150, 150); // Taille d'affichage du NPC
                 npc.setImmovable(true);
                 npc.dialogs = data.dialog;
                 npc.currentDialogIndex = 0;
@@ -501,8 +508,8 @@
 
         function createBattleZones(scene) {
             const zones = [
-                { x: 100, y: 100, w: 400, h: 300 },
-                { x: 1000, y: 800, w: 500, h: 300 }
+                { x: 1000, y: 1000, w: 3000, h: 2000 },
+                { x: 6000, y: 4000, w: 3000, h: 2000 }
             ];
             
             zones.forEach(z => {
@@ -559,7 +566,7 @@
 
         function checkNPCProximity() {
             let closest = null;
-            let minDist = 60;
+            let minDist = 200; // Distance augmentée pour les grosses tuiles
             
             npcs.forEach(npc => {
                 const dist = Phaser.Math.Distance.Between(player.x, player.y, npc.x, npc.y);
