@@ -324,66 +324,32 @@
     </div>
 
     <script>
-        // ===== ÉTAT DU JEU =====
-        const gameState = {
-            playerName: 'Red',
-            money: 500,
-            inventory: [
-                { id: 'potion', name: 'Potion', icon: '🧪', quantity: 5 },
-                { id: 'pokeball', name: 'Pokéball', icon: '⚾', quantity: 10 },
-                { id: 'antidote', name: 'Antidote', icon: '💊', quantity: 3 }
-            ],
-            team: [
-                { id: 1, name: 'Flammy', sprite: '🔥', level: 5, hp: 45, maxHp: 45, attack: 15, defense: 10 }
-            ],
-            badges: 0
-        };
+const config = {
+    type: Phaser.AUTO,
+    width: 800,
+    height: 600,
+    parent: "game-container",
+    pixelArt: true,
+    physics: {
+        default: "arcade",
+        arcade: { debug: false }
+    },
+    scene: { preload, create, update }
+};
 
-        let currentBattle = null;
-        let player, cursors, spaceKey, escKey;
-        let npcs = [];
-        let isDialogActive = false;
-        let canInteract = false;
-        let nearestNPC = null;
-        let currentDialog = null;
-        let isMenuOpen = false;
+const game = new Phaser.Game(config);
+let player, cursors, spaceKey, map, battleLayer, npcs = [];
 
-        // ===== CONFIGURATION PHASER =====
-        const config = {
-            type: Phaser.AUTO,
-            width: 800,
-            height: 600,
-            parent: 'game-container',
-            physics: {
-                default: 'arcade',
-                arcade: { gravity: { y: 0 }, debug: false }
-            },
-            scene: { preload, create, update }
-        };
-
-        const game = new Phaser.Game(config);
-
-        // ===== PRÉCHARGEMENT =====
-        function preload() {
-            // PERSONNAGE : 272×288 pixels (4 colonnes × 4 rangées)
-            // Chaque frame = 68×72 pixels
-            this.load.spritesheet('player', 'assets/player.png', {
-                frameWidth: 68,   // 272 ÷ 4 = 68
-                frameHeight: 72   // 288 ÷ 4 = 72
-            });
-            
-            // ASSETS : 2048×2048 pixels (tuiles et NPCs)
-            this.load.image('grass', 'assets/grass.png');
-            this.load.image('path', 'assets/path.png');
-            this.load.image('water', 'assets/water.png');
-            this.load.image('tree', 'assets/tree.png');
-            
-            // NPCs - aussi 2048×2048
-            this.load.image('npc1', 'assets/npc1.png');
-            this.load.image('npc2', 'assets/npc2.png');
-            this.load.image('npc3', 'assets/npc3.png');
-        }
-
+function preload() {
+    this.load.tilemapTiledJSON("map", "assets/map.json");
+    this.load.image("tiles", "assets/tileset.png");
+    this.load.spritesheet("player", "assets/player.png", {
+        frameWidth: 32,
+        frameHeight: 48
+    });
+    this.load.image("npc", "assets/npc.png");
+}
+        
         // ===== CRÉATION =====
         function create() {
             // Créer la carte (tuiles de 2048px, donc moins de tuiles)
