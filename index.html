@@ -3,813 +3,299 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mon RPG Pokémon</title>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
+    <title>Mon Village RPG</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.55.2/phaser.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: #1a1a2e;
-            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            overflow: hidden;
+            background: #1a1a1a;
         }
-        #game-container { position: relative; box-shadow: 0 10px 50px rgba(0,0,0,0.5); }
-        
-        /* Prompt d'interaction */
-        #interact-prompt {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -200%);
-            background: rgba(0,0,0,0.8);
-            color: #fff;
-            padding: 8px 15px;
-            border: 2px solid #fff;
-            font-size: 12px;
-            display: none;
-            animation: float 2s ease-in-out infinite;
+        canvas {
+            border: 3px solid #333;
         }
-        #interact-prompt.active { display: block; }
-        @keyframes float {
-            0%, 100% { transform: translate(-50%, -200%); }
-            50% { transform: translate(-50%, -210%); }
-        }
-        
-        /* Boîte de dialogue */
-        #dialog-box {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            background: #fff;
-            border: 4px solid #000;
-            padding: 20px;
-            display: none;
-        }
-        #dialog-box.active { display: block; }
-        #dialog-text {
-            color: #000;
-            font-size: 14px;
-            line-height: 1.6;
-            min-height: 60px;
-        }
-        #dialog-prompt {
-            position: absolute;
-            bottom: 10px;
-            right: 20px;
-            font-size: 12px;
-            animation: blink 1s infinite;
-        }
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0; }
-        }
-        
-        /* Menu principal */
-        #main-menu {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0,0,0,0.9);
-            border: 3px solid #fff;
-            padding: 10px;
-            color: #fff;
-            font-size: 12px;
-            display: none;
-        }
-        #main-menu.active { display: block; }
-        .menu-item {
-            padding: 8px 15px;
-            margin: 5px 0;
-            background: #333;
-            border: 2px solid #666;
-            cursor: pointer;
-        }
-        .menu-item:hover { background: #555; border-color: #fff; }
-        
-        /* Écran de combat */
-        #battle-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(to bottom, #87ceeb 0%, #98d98e 100%);
-            display: none;
-            flex-direction: column;
-        }
-        #battle-screen.active { display: flex; }
-        .battle-area {
-            flex: 2;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            padding: 40px;
-        }
-        .monster {
-            text-align: center;
-        }
-        .monster-sprite {
-            width: 120px;
-            height: 120px;
-            background: #fff;
-            border: 3px solid #000;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 60px;
-        }
-        .monster-info {
-            background: rgba(255,255,255,0.9);
-            padding: 10px;
-            border: 2px solid #000;
-            font-size: 12px;
-        }
-        .hp-bar {
-            width: 100%;
-            height: 10px;
-            background: #ccc;
-            border: 1px solid #000;
-            margin-top: 5px;
-        }
-        .hp-fill {
-            height: 100%;
-            background: linear-gradient(to bottom, #00ff00, #008800);
-            transition: width 0.3s;
-        }
-        .battle-ui {
-            flex: 1;
-            background: #fff;
-            border-top: 4px solid #000;
-            padding: 20px;
-        }
-        .battle-menu {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-        .battle-button {
-            padding: 15px;
-            background: #f0f0f0;
-            border: 3px solid #000;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        .battle-button:hover { background: #ffeb3b; }
-        .battle-message {
-            margin-bottom: 15px;
-            font-size: 14px;
-            min-height: 40px;
-        }
-        
-        /* Inventaire */
-        #inventory-screen {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            height: 80%;
-            background: #fff;
-            border: 4px solid #000;
-            padding: 20px;
-            display: none;
-            flex-direction: column;
-        }
-        #inventory-screen.active { display: flex; }
-        .inventory-header {
-            font-size: 16px;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #000;
-        }
-        .inventory-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            overflow-y: auto;
-            flex: 1;
-        }
-        .inventory-item {
-            background: #f0f0f0;
-            border: 2px solid #000;
-            padding: 15px;
-            text-align: center;
-            font-size: 12px;
-            cursor: pointer;
-        }
-        .inventory-item:hover { background: #ffeb3b; }
-        .item-icon { font-size: 30px; margin-bottom: 10px; }
-        .close-button {
-            margin-top: 15px;
-            padding: 10px;
-            background: #f44336;
-            color: #fff;
-            border: 3px solid #000;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        
-        /* Équipe */
-        #team-screen {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            height: 80%;
-            background: #fff;
-            border: 4px solid #000;
-            padding: 20px;
-            display: none;
-            flex-direction: column;
-        }
-        #team-screen.active { display: flex; }
-        .team-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            overflow-y: auto;
-            flex: 1;
-        }
-        .team-monster {
-            background: #f0f0f0;
-            border: 2px solid #000;
-            padding: 15px;
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            font-size: 12px;
-        }
-        .team-monster-sprite {
-            width: 60px;
-            height: 60px;
-            background: #fff;
-            border: 2px solid #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 30px;
-        }
-        .team-monster-info { flex: 1; }
     </style>
 </head>
 <body>
-    <div id="game-container">
-        <div id="interact-prompt">Appuyez sur ESPACE</div>
-        
-        <div id="dialog-box">
-            <div id="dialog-text"></div>
-            <div id="dialog-prompt">▼</div>
-        </div>
-        
-        <div id="main-menu">
-            <div class="menu-item" onclick="toggleInventory()">📦 SAC</div>
-            <div class="menu-item" onclick="toggleTeam()">⚔️ ÉQUIPE</div>
-            <div class="menu-item" onclick="closeMenu()">❌ FERMER</div>
-        </div>
-        
-        <div id="battle-screen">
-            <div class="battle-area">
-                <div class="monster enemy-monster">
-                    <div class="monster-info">
-                        <div id="enemy-name">Monstre Sauvage</div>
-                        <div class="hp-bar">
-                            <div class="hp-fill" id="enemy-hp" style="width: 100%"></div>
-                        </div>
-                        <div id="enemy-level">Niv. 5</div>
-                    </div>
-                    <div class="monster-sprite" id="enemy-sprite">🐉</div>
-                </div>
-                <div class="monster player-monster">
-                    <div class="monster-sprite" id="player-monster-sprite">🔥</div>
-                    <div class="monster-info">
-                        <div id="player-monster-name">Mon Monstre</div>
-                        <div class="hp-bar">
-                            <div class="hp-fill" id="player-monster-hp" style="width: 100%"></div>
-                        </div>
-                        <div id="player-monster-level">Niv. 5</div>
-                    </div>
-                </div>
-            </div>
-            <div class="battle-ui">
-                <div class="battle-message" id="battle-message">Un monstre sauvage apparaît !</div>
-                <div class="battle-menu">
-                    <div class="battle-button" onclick="battleAction('attack')">⚔️ ATTAQUE</div>
-                    <div class="battle-button" onclick="battleAction('item')">🎒 OBJET</div>
-                    <div class="battle-button" onclick="battleAction('capture')">⚾ CAPTURER</div>
-                    <div class="battle-button" onclick="battleAction('run')">🏃 FUIR</div>
-                </div>
-            </div>
-        </div>
-        
-        <div id="inventory-screen">
-            <div class="inventory-header">
-                💰 Argent: <span id="money-display">500</span> ₽
-            </div>
-            <div class="inventory-grid" id="inventory-grid"></div>
-            <div class="close-button" onclick="toggleInventory()">FERMER</div>
-        </div>
-        
-        <div id="team-screen">
-            <div class="inventory-header">Mon Équipe</div>
-            <div class="team-list" id="team-list"></div>
-            <div class="close-button" onclick="toggleTeam()">FERMER</div>
-        </div>
-    </div>
-
     <script>
-const config = {
-    type: Phaser.AUTO,
-    width: 800,
-    height: 600,
-    parent: "game-container",
-    pixelArt: true,
-    physics: {
-        default: "arcade",
-        arcade: { debug: false }
-    },
-    scene: { preload, create, update }
-};
+        const config = {
+            type: Phaser.AUTO,
+            width: 1024,
+            height: 768,
+            backgroundColor: '#87CEEB',
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: 0 },
+                    debug: false
+                }
+            },
+            scene: {
+                preload: preload,
+                create: create,
+                update: update
+            }
+        };
 
-const game = new Phaser.Game(config);
-let player, cursors, spaceKey, map, battleLayer, npcs = [];
-
-function preload() {
-    this.load.tilemapTiledJSON("map", "assets/map.json");
-    this.load.image("tiles", "assets/tileset.png");
-    this.load.spritesheet("player", "assets/player.png", {
-        frameWidth: 32,
-        frameHeight: 48
-    });
-    this.load.image("npc", "assets/npc.png");
-}
+        const game = new Phaser.Game(config);
         
-        // ===== CRÉATION =====
+        let player;
+        let cursors;
+        let worldObjects;
+        let houses = [];
+
+        function preload() {
+            createAllTextures(this);
+        }
+
         function create() {
-            // Créer la carte (tuiles de 2048px, donc moins de tuiles)
-            createMap(this);
+            const worldWidth = 2500;
+            const worldHeight = 2500;
+            this.physics.world.bounds.width = worldWidth;
+            this.physics.world.bounds.height = worldHeight;
             
-            // Créer le joueur (taille ajustée pour 68×72)
-            player = this.physics.add.sprite(400, 300, 'player', 0);
+            // ===== SOL : HERBE =====
+            const ground = this.add.rectangle(worldWidth/2, worldHeight/2, worldWidth, worldHeight, 0x3CB371);
+            
+            // ===== CHEMIN CENTRAL =====
+            // Chemin horizontal
+            this.add.rectangle(worldWidth/2, worldHeight/2, worldWidth, 120, 0xD2B48C);
+            // Chemin vertical
+            this.add.rectangle(worldWidth/2, worldHeight/2, 120, worldHeight, 0xD2B48C);
+            
+            // ===== RIVIÈRE =====
+            const river = this.add.rectangle(worldWidth/2 + 600, worldHeight/2, 180, worldHeight, 0x4169E1);
+            
+            // Groupe d'objets avec collision
+            worldObjects = this.physics.add.staticGroup();
+            
+            // Ajout de l'eau comme obstacle
+            const waterCollision = worldObjects.create(worldWidth/2 + 600, worldHeight/2);
+            waterCollision.body.setSize(180, worldHeight);
+            waterCollision.setVisible(false);
+            
+            // ===== VILLAGE : MAISONS =====
+            // Quartier nord-ouest
+            createHouse(this, worldObjects, 400, 400);
+            createHouse(this, worldObjects, 700, 400);
+            createHouse(this, worldObjects, 400, 700);
+            
+            // Quartier nord-est
+            createHouse(this, worldObjects, 1800, 400);
+            createHouse(this, worldObjects, 2100, 400);
+            createHouse(this, worldObjects, 1800, 700);
+            createHouse(this, worldObjects, 2100, 700);
+            
+            // Quartier sud-ouest
+            createHouse(this, worldObjects, 400, 1800);
+            createHouse(this, worldObjects, 700, 1800);
+            createHouse(this, worldObjects, 400, 2100);
+            createHouse(this, worldObjects, 700, 2100);
+            
+            // Quartier sud-est
+            createHouse(this, worldObjects, 1800, 1800);
+            createHouse(this, worldObjects, 2100, 1800);
+            createHouse(this, worldObjects, 1800, 2100);
+            
+            // ===== ARBRES AUTOUR DU VILLAGE =====
+            // Forêt au nord
+            for (let i = 0; i < 15; i++) {
+                const x = Phaser.Math.Between(200, 2300);
+                const y = Phaser.Math.Between(50, 250);
+                createTree(this, worldObjects, x, y);
+            }
+            
+            // Forêt au sud
+            for (let i = 0; i < 15; i++) {
+                const x = Phaser.Math.Between(200, 2300);
+                const y = Phaser.Math.Between(2250, 2450);
+                createTree(this, worldObjects, x, y);
+            }
+            
+            // Arbres éparpillés
+            createTree(this, worldObjects, 1000, 1000);
+            createTree(this, worldObjects, 1500, 1000);
+            createTree(this, worldObjects, 1000, 1500);
+            createTree(this, worldObjects, 1500, 1500);
+            
+            // ===== BUISSONS =====
+            for (let i = 0; i < 30; i++) {
+                const x = Phaser.Math.Between(100, worldWidth - 100);
+                const y = Phaser.Math.Between(100, worldHeight - 100);
+                // Évite de placer sur les chemins
+                if (Math.abs(x - worldWidth/2) > 150 && Math.abs(y - worldHeight/2) > 150) {
+                    createBush(this, worldObjects, x, y);
+                }
+            }
+            
+            // ===== PLACE DU VILLAGE (centre) =====
+            const plaza = this.add.rectangle(worldWidth/2, worldHeight/2, 300, 300, 0xDAA520);
+            plaza.setDepth(-1);
+            
+            // Fontaine au centre
+            const fountain = this.add.circle(worldWidth/2, worldHeight/2, 40, 0x87CEEB);
+            const fountainBase = worldObjects.create(worldWidth/2, worldHeight/2);
+            fountainBase.body.setCircle(40);
+            fountainBase.setVisible(false);
+            
+            // ===== JOUEUR =====
+            player = this.physics.add.sprite(worldWidth/2, worldHeight/2 + 200, 'player');
             player.setCollideWorldBounds(true);
+            player.setDepth(10);
             
-            // Ajuster la taille de collision du joueur
-            player.setSize(60, 60);
-            player.setOffset(4, 12);
+            // ===== COLLISIONS =====
+            this.physics.add.collider(player, worldObjects);
             
-            // Animations (16 frames au total, 4×4)
-            this.anims.create({
-                key: 'walk-down',
-                frames: this.anims.generateFrameNumbers('player', { start: 0, end: 3 }),
-                frameRate: 8,
-                repeat: -1
-            });
-            this.anims.create({
-                key: 'walk-left',
-                frames: this.anims.generateFrameNumbers('player', { start: 4, end: 7 }),
-                frameRate: 8,
-                repeat: -1
-            });
-            this.anims.create({
-                key: 'walk-right',
-                frames: this.anims.generateFrameNumbers('player', { start: 8, end: 11 }),
-                frameRate: 8,
-                repeat: -1
-            });
-            this.anims.create({
-                key: 'walk-up',
-                frames: this.anims.generateFrameNumbers('player', { start: 12, end: 15 }),
-                frameRate: 8,
-                repeat: -1
-            });
+            // ===== CAMÉRA =====
+            this.cameras.main.startFollow(player, true, 0.1, 0.1);
+            this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
+            this.cameras.main.setZoom(1.2);
             
-            // Créer NPCs
-            createNPCs(this);
-            
-            // Créer zones de combat
-            createBattleZones(this);
-            
-            // Contrôles
+            // ===== CONTRÔLES =====
             cursors = this.input.keyboard.createCursorKeys();
-            spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-            escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
-            
-            // Caméra
-            this.cameras.main.startFollow(player);
-            this.cameras.main.setBounds(0, 0, 10240, 7680); // Carte ajustée
-        }
-
-        function createMap(scene) {
-            // Carte avec tuiles de 2048×2048 (beaucoup moins de tuiles)
-            // 5 tuiles en largeur × 4 tuiles en hauteur = 10240×8192
-            
-            // Herbe partout (5×4 tuiles)
-            for (let y = 0; y < 4; y++) {
-                for (let x = 0; x < 5; x++) {
-                    const tile = scene.add.image(x * 2048, y * 2048, 'grass').setOrigin(0);
-                    tile.setDisplaySize(2048, 2048);
-                }
-            }
-            
-            // Chemin central (1 tuile de large)
-            for (let y = 0; y < 4; y++) {
-                const tile = scene.add.image(2 * 2048, y * 2048, 'path').setOrigin(0);
-                tile.setDisplaySize(2048, 2048);
-            }
-            
-            // Lac (1 tuile)
-            const water = scene.add.image(0, 2048, 'water').setOrigin(0);
-            water.setDisplaySize(2048, 2048);
-            scene.physics.add.existing(water, true);
-            scene.physics.add.collider(player, water);
-            
-            // Arbres (bordures - plus espacés)
-            for (let x = 0; x < 5; x++) {
-                addTree(scene, x * 2048, 0);
-                addTree(scene, x * 2048, 3 * 2048);
-            }
-            for (let y = 1; y < 3; y++) {
-                addTree(scene, 0, y * 2048);
-                addTree(scene, 4 * 2048, y * 2048);
-            }
-        }
-
-        function addTree(scene, x, y) {
-            const tree = scene.add.image(x, y, 'tree').setOrigin(0);
-            tree.setDisplaySize(2048, 2048);
-            scene.physics.add.existing(tree, true);
-            scene.physics.add.collider(player, tree);
-        }
-
-        function createNPCs(scene) {
-            const npcData = [
-                { x: 2500, y: 1500, sprite: 'npc1', dialog: [
-                    "Bonjour ! Bienvenue dans le monde des monstres !",
-                    "Attention aux hautes herbes !"
-                ]},
-                { x: 5000, y: 3000, sprite: 'npc2', dialog: [
-                    "Pour devenir champion, il faut 8 badges !",
-                    "Bonne chance !"
-                ]},
-                { x: 3500, y: 5000, sprite: 'npc3', dialog: [
-                    "J'adore les monstres de type feu ! 🔥"
-                ]}
-            ];
-            
-            npcData.forEach(data => {
-                const npc = scene.physics.add.sprite(data.x, data.y, data.sprite);
-                npc.setDisplaySize(150, 150); // Taille d'affichage du NPC
-                npc.setImmovable(true);
-                npc.dialogs = data.dialog;
-                npc.currentDialogIndex = 0;
-                npcs.push(npc);
-            });
-        }
-
-        function createBattleZones(scene) {
-            const zones = [
-                { x: 1000, y: 1000, w: 3000, h: 2000 },
-                { x: 6000, y: 4000, w: 3000, h: 2000 }
-            ];
-            
-            zones.forEach(z => {
-                const zone = scene.add.rectangle(z.x, z.y, z.w, z.h, 0x27ae60, 0.3).setOrigin(0);
-                scene.physics.add.existing(zone, true);
-                scene.physics.add.overlap(player, zone, () => {
-                    if (!isDialogActive && Math.random() < 0.02) {
-                        startWildBattle();
-                    }
-                });
-            });
-        }
-
-        // ===== BOUCLE DE JEU =====
-        function update() {
-            if (isDialogActive || isMenuOpen) {
-                player.setVelocity(0);
-                return;
-            }
-            
-            const speed = 160;
-            player.setVelocity(0);
-            
-            if (cursors.left.isDown) {
-                player.setVelocityX(-speed);
-                player.anims.play('walk-left', true);
-            } else if (cursors.right.isDown) {
-                player.setVelocityX(speed);
-                player.anims.play('walk-right', true);
-            } else if (cursors.up.isDown) {
-                player.setVelocityY(-speed);
-                player.anims.play('walk-up', true);
-            } else if (cursors.down.isDown) {
-                player.setVelocityY(speed);
-                player.anims.play('walk-down', true);
-            } else {
-                player.anims.stop();
-            }
-            
-            checkNPCProximity();
-            
-            if (Phaser.Input.Keyboard.JustDown(spaceKey)) {
-                if (canInteract && nearestNPC) {
-                    showDialog(nearestNPC);
-                } else if (isDialogActive) {
-                    nextDialog();
-                }
-            }
-            
-            if (Phaser.Input.Keyboard.JustDown(escKey)) {
-                toggleMainMenu();
-            }
-        }
-
-        function checkNPCProximity() {
-            let closest = null;
-            let minDist = 200; // Distance augmentée pour les grosses tuiles
-            
-            npcs.forEach(npc => {
-                const dist = Phaser.Math.Distance.Between(player.x, player.y, npc.x, npc.y);
-                if (dist < minDist) {
-                    closest = npc;
-                    minDist = dist;
-                }
-            });
-            
-            if (closest && !isDialogActive) {
-                canInteract = true;
-                nearestNPC = closest;
-                document.getElementById('interact-prompt').classList.add('active');
-            } else {
-                canInteract = false;
-                nearestNPC = null;
-                document.getElementById('interact-prompt').classList.remove('active');
-            }
-        }
-
-        // ===== DIALOGUES =====
-        function showDialog(npc) {
-            isDialogActive = true;
-            currentDialog = npc;
-            npc.currentDialogIndex = 0;
-            
-            document.getElementById('dialog-box').classList.add('active');
-            document.getElementById('dialog-text').textContent = npc.dialogs[0];
-            document.getElementById('interact-prompt').classList.remove('active');
-        }
-
-        function nextDialog() {
-            if (!currentDialog) return;
-            
-            currentDialog.currentDialogIndex++;
-            
-            if (currentDialog.currentDialogIndex >= currentDialog.dialogs.length) {
-                closeDialog();
-            } else {
-                document.getElementById('dialog-text').textContent = 
-                    currentDialog.dialogs[currentDialog.currentDialogIndex];
-            }
-        }
-
-        function closeDialog() {
-            isDialogActive = false;
-            currentDialog = null;
-            document.getElementById('dialog-box').classList.remove('active');
-        }
-
-        // ===== COMBATS =====
-        function startWildBattle() {
-            const wildMonsters = [
-                { name: 'Draco', sprite: '🐉', level: 5, hp: 35, attack: 12, defense: 8 },
-                { name: 'Leafy', sprite: '🍃', level: 4, hp: 40, attack: 10, defense: 12 },
-                { name: 'Sparky', sprite: '⚡', level: 6, hp: 30, attack: 15, defense: 7 }
-            ];
-            
-            const enemy = {...wildMonsters[Math.floor(Math.random() * wildMonsters.length)]};
-            enemy.maxHp = enemy.hp;
-            
-            currentBattle = {
-                enemy: enemy,
-                playerMonster: {...gameState.team[0]},
-                turn: 'player'
+            this.keys = {
+                z: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z),
+                q: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q),
+                s: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+                d: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
             };
             
-            document.getElementById('battle-screen').classList.add('active');
-            document.getElementById('enemy-name').textContent = enemy.name;
-            document.getElementById('enemy-level').textContent = `Niv. ${enemy.level}`;
-            document.getElementById('enemy-sprite').textContent = enemy.sprite;
-            document.getElementById('enemy-hp').style.width = '100%';
-            
-            document.getElementById('player-monster-name').textContent = currentBattle.playerMonster.name;
-            document.getElementById('player-monster-level').textContent = `Niv. ${currentBattle.playerMonster.level}`;
-            document.getElementById('player-monster-sprite').textContent = currentBattle.playerMonster.sprite;
-            document.getElementById('player-monster-hp').style.width = '100%';
-            
-            showBattleMessage(`Un ${enemy.name} sauvage apparaît !`);
+            // ===== TEXTE INFO =====
+            const infoText = this.add.text(16, 16, 'Utilise les flèches ou ZQSD pour te déplacer', {
+                fontSize: '18px',
+                fill: '#fff',
+                backgroundColor: '#000',
+                padding: { x: 10, y: 5 }
+            });
+            infoText.setScrollFactor(0);
+            infoText.setDepth(100);
         }
 
-        function battleAction(action) {
-            if (!currentBattle || currentBattle.turn !== 'player') return;
+        function update() {
+            const speed = 200;
             
-            const { enemy, playerMonster } = currentBattle;
+            player.setVelocity(0);
             
-            switch(action) {
-                case 'attack':
-                    const damage = Math.max(1, playerMonster.attack - enemy.defense + Math.floor(Math.random() * 5));
-                    enemy.hp = Math.max(0, enemy.hp - damage);
-                    showBattleMessage(`${playerMonster.name} attaque ! ${damage} dégâts !`);
-                    updateBattleHP();
-                    
-                    setTimeout(() => {
-                        if (enemy.hp <= 0) {
-                            winBattle();
-                        } else {
-                            enemyTurn();
-                        }
-                    }, 1500);
-                    break;
-                    
-                case 'item':
-                    const potion = gameState.inventory.find(i => i.id === 'potion');
-                    if (potion && potion.quantity > 0 && playerMonster.hp < playerMonster.maxHp) {
-                        playerMonster.hp = Math.min(playerMonster.maxHp, playerMonster.hp + 20);
-                        potion.quantity--;
-                        showBattleMessage(`${playerMonster.name} récupère 20 HP !`);
-                        updateBattleHP();
-                        setTimeout(enemyTurn, 1500);
-                    } else {
-                        showBattleMessage('Pas de potion disponible !');
-                    }
-                    break;
-                    
-                case 'capture':
-                    const pokeball = gameState.inventory.find(i => i.id === 'pokeball');
-                    if (pokeball && pokeball.quantity > 0) {
-                        pokeball.quantity--;
-                        const catchRate = (1 - enemy.hp / enemy.maxHp) * 0.5;
-                        if (Math.random() < catchRate) {
-                            showBattleMessage(`${enemy.name} a été capturé !`);
-                            gameState.team.push({
-                                id: Date.now(),
-                                name: enemy.name,
-                                sprite: enemy.sprite,
-                                level: enemy.level,
-                                hp: enemy.maxHp,
-                                maxHp: enemy.maxHp,
-                                attack: enemy.attack,
-                                defense: enemy.defense
-                            });
-                            setTimeout(endBattle, 2000);
-                        } else {
-                            showBattleMessage(`${enemy.name} s'est échappé !`);
-                            setTimeout(enemyTurn, 1500);
-                        }
-                    } else {
-                        showBattleMessage('Pas de Pokéball !');
-                    }
-                    break;
-                    
-                case 'run':
-                    if (Math.random() < 0.5) {
-                        showBattleMessage('Vous avez réussi à fuir !');
-                        setTimeout(endBattle, 1500);
-                    } else {
-                        showBattleMessage('Impossible de fuir !');
-                        setTimeout(enemyTurn, 1500);
-                    }
-                    break;
+            // Déplacements
+            if (cursors.left.isDown || this.keys.q.isDown) {
+                player.setVelocityX(-speed);
+            } else if (cursors.right.isDown || this.keys.d.isDown) {
+                player.setVelocityX(speed);
             }
             
-            currentBattle.turn = 'enemy';
-        }
-
-        function enemyTurn() {
-            const { enemy, playerMonster } = currentBattle;
-            const damage = Math.max(1, enemy.attack - playerMonster.defense + Math.floor(Math.random() * 5));
-            playerMonster.hp = Math.max(0, playerMonster.hp - damage);
-            
-            showBattleMessage(`${enemy.name} attaque ! ${damage} dégâts !`);
-            updateBattleHP();
-            
-            setTimeout(() => {
-                if (playerMonster.hp <= 0) {
-                    loseBattle();
-                } else {
-                    currentBattle.turn = 'player';
-                    showBattleMessage('Que faire ?');
-                }
-            }, 1500);
-        }
-
-        function updateBattleHP() {
-            const { enemy, playerMonster } = currentBattle;
-            const enemyPercent = (enemy.hp / enemy.maxHp) * 100;
-            const playerPercent = (playerMonster.hp / playerMonster.maxHp) * 100;
-            
-            document.getElementById('enemy-hp').style.width = enemyPercent + '%';
-            document.getElementById('player-monster-hp').style.width = playerPercent + '%';
-        }
-
-        function showBattleMessage(msg) {
-            document.getElementById('battle-message').textContent = msg;
-        }
-
-        function winBattle() {
-            const moneyGained = currentBattle.enemy.level * 15;
-            gameState.money += moneyGained;
-            showBattleMessage(`Victoire ! Vous gagnez ${moneyGained} ₽ !`);
-            setTimeout(endBattle, 2000);
-        }
-
-        function loseBattle() {
-            showBattleMessage('Défaite... Vous retournez au centre.');
-            gameState.team.forEach(m => m.hp = m.maxHp);
-            setTimeout(endBattle, 2000);
-        }
-
-        function endBattle() {
-            currentBattle = null;
-            document.getElementById('battle-screen').classList.remove('active');
-        }
-
-        // ===== INTERFACE =====
-        function toggleMainMenu() {
-            isMenuOpen = !isMenuOpen;
-            const menu = document.getElementById('main-menu');
-            menu.classList.toggle('active', isMenuOpen);
-        }
-
-        function closeMenu() {
-            isMenuOpen = false;
-            document.getElementById('main-menu').classList.remove('active');
-        }
-
-        function toggleInventory() {
-            const inv = document.getElementById('inventory-screen');
-            if (!inv.classList.contains('active')) {
-                updateInventoryDisplay();
-                inv.classList.add('active');
-            } else {
-                inv.classList.remove('active');
+            if (cursors.up.isDown || this.keys.z.isDown) {
+                player.setVelocityY(-speed);
+            } else if (cursors.down.isDown || this.keys.s.isDown) {
+                player.setVelocityY(speed);
             }
-        }
-
-        function updateInventoryDisplay() {
-            const grid = document.getElementById('inventory-grid');
-            grid.innerHTML = '';
-            document.getElementById('money-display').textContent = gameState.money;
             
-            gameState.inventory.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'inventory-item';
-                div.innerHTML = `
-                    <div class="item-icon">${item.icon}</div>
-                    <div><strong>${item.name}</strong></div>
-                    <div style="font-size: 10px; margin-top: 5px;">x${item.quantity}</div>
-                `;
-                grid.appendChild(div);
+            // Normalise la vitesse en diagonale
+            if (player.body.velocity.x !== 0 && player.body.velocity.y !== 0) {
+                player.setVelocity(
+                    player.body.velocity.x * 0.707,
+                    player.body.velocity.y * 0.707
+                );
+            }
+            
+            // Gestion de la profondeur (pour passer derrière les objets)
+            updateDepth(player);
+        }
+        
+        // ===== FONCTIONS DE CRÉATION D'OBJETS =====
+        
+        function createHouse(scene, group, x, y) {
+            const container = scene.add.container(x, y);
+            
+            // Murs
+            const walls = scene.add.rectangle(0, 20, 160, 140, 0x8B4513);
+            
+            // Toit
+            const roof = scene.add.triangle(0, -50, -90, 0, 90, 0, 0, -60, 0x8B0000);
+            
+            // Porte
+            const door = scene.add.rectangle(0, 70, 40, 60, 0x654321);
+            
+            // Fenêtres
+            const window1 = scene.add.rectangle(-40, 0, 30, 30, 0xFFFF99);
+            const window2 = scene.add.rectangle(40, 0, 30, 30, 0xFFFF99);
+            
+            container.add([roof, walls, door, window1, window2]);
+            
+            // Collision
+            const collision = group.create(x, y + 30);
+            collision.body.setSize(140, 100);
+            collision.setVisible(false);
+            
+            houses.push(container);
+            return container;
+        }
+        
+        function createTree(scene, group, x, y) {
+            const container = scene.add.container(x, y);
+            
+            // Tronc
+            const trunk = scene.add.rectangle(0, 20, 20, 40, 0x8B4513);
+            
+            // Feuillage (3 cercles pour faire un arbre touffu)
+            const leaves1 = scene.add.circle(-15, -10, 30, 0x228B22);
+            const leaves2 = scene.add.circle(15, -10, 30, 0x228B22);
+            const leaves3 = scene.add.circle(0, -25, 35, 0x006400);
+            
+            container.add([trunk, leaves1, leaves2, leaves3]);
+            
+            // Collision (juste le tronc)
+            const collision = group.create(x, y + 20);
+            collision.body.setSize(20, 30);
+            collision.setVisible(false);
+            
+            return container;
+        }
+        
+        function createBush(scene, group, x, y) {
+            const container = scene.add.container(x, y);
+            
+            // Plusieurs cercles pour faire un buisson
+            const bush1 = scene.add.circle(-10, 0, 20, 0x2F4F2F);
+            const bush2 = scene.add.circle(10, 0, 20, 0x2F4F2F);
+            const bush3 = scene.add.circle(0, -8, 18, 0x3CB371);
+            
+            container.add([bush1, bush2, bush3]);
+            
+            // Collision
+            const collision = group.create(x, y);
+            collision.body.setSize(35, 25);
+            collision.setVisible(false);
+            
+            return container;
+        }
+        
+        function updateDepth(sprite) {
+            // Plus le sprite est bas sur l'écran, plus il est devant
+            sprite.setDepth(sprite.y);
+            
+            // Fait pareil pour les maisons
+            houses.forEach(house => {
+                house.setDepth(house.y);
             });
         }
-
-        function toggleTeam() {
-            const team = document.getElementById('team-screen');
-            if (!team.classList.contains('active')) {
-                updateTeamDisplay();
-                team.classList.add('active');
-            } else {
-                team.classList.remove('active');
-            }
-        }
-
-        function updateTeamDisplay() {
-            const list = document.getElementById('team-list');
-            list.innerHTML = '';
-            
-            gameState.team.forEach(monster => {
-                const div = document.createElement('div');
-                div.className = 'team-monster';
-                const hpPercent = (monster.hp / monster.maxHp) * 100;
-                
-                div.innerHTML = `
-                    <div class="team-monster-sprite">${monster.sprite}</div>
-                    <div class="team-monster-info">
-                        <div><strong>${monster.name}</strong> - Niv. ${monster.level}</div>
-                        <div class="hp-bar" style="margin-top: 5px;">
-                            <div class="hp-fill" style="width: ${hpPercent}%"></div>
-                        </div>
-                        <div style="margin-top: 5px; font-size: 10px;">
-                            HP: ${monster.hp}/${monster.maxHp} | ATK: ${monster.attack} | DEF: ${monster.defense}
-                        </div>
-                    </div>
-                `;
-                list.appendChild(div);
-            });
+        
+        // ===== CRÉATION DES TEXTURES =====
+        
+        function createAllTextures(scene) {
+            // Joueur rouge
+            const playerGfx = scene.make.graphics({ x: 0, y: 0, add: false });
+            playerGfx.fillStyle(0xFF0000, 1);
+            playerGfx.fillCircle(16, 24, 12); // Corps
+            playerGfx.fillCircle(16, 12, 8);  // Tête
+            playerGfx.fillStyle(0x000000, 1);
+            playerGfx.fillCircle(13, 10, 2);  // Œil gauche
+            playerGfx.fillCircle(19, 10, 2);  // Œil droit
+            playerGfx.generateTexture('player', 32, 32);
+            playerGfx.destroy();
         }
     </script>
 </body>
