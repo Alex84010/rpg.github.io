@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon Village RPG</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.55.2/phaser.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a1a;
+        }
+        canvas {
+            border: 3px solid #333;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        const config = {
+            type: Phaser.AUTO,
+            width: 1024,
+            height: 768,
+            backgroundColor: '#87CEEB',
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: 0 },
+                    debug: false
+                }
+            },
+            scene: {
+                preload: preload,
+                create: create,
+                update: update
+            }
+        };
+
+        const game = new Phaser.Game(config);
+        
+        let player;
+        let cursors;
+        let worldObjects;
+        let houses = [];
+        let bushes = [];
+        
+        // UI et inventaire
+        let inventoryOpen = false;
+        let inventoryUI;
+        let mapUI;
+        let objectsUI;
+        let settingsUI;
+        let inventoryButton;
+        let closeButton;
+        let tabButtons = {};
+        let currentTab = 'map';
+        
+        // Paramètres
+        let settings = {
+            volume: 70,
+            brightness: 100
+        };
+        
+        // Objets de l'inventaire
+        let inventory = [];
+        
+        // Minimap
+        let minimap;
+        let minimapCam;
+
+        function preload() {
+            createAllTextures(this);
+        }
+
+        function create() {
+            const worldWidth = 2500;
+            const worldHeight = 2500;
+            this.physics.world.bounds.width = worldWidth;
+            this.physics.world.bounds.height = worldHeight;
+            
+            // ===== SOL : HERBE =====
+            const ground = this.add.rectangle(worldWidth/2, worldHeight/2, worldWidth, worldHeight, 0x3CB371);
+            ground.setDepth(-100);
+            
+            // ===== CHEMIN CENTRAL =====
+            this.add.rectangle(worldWidth/2, worldHeight/2, worldWidth, 120, 0xD2B48C).setDepth(-50);
+            this.add.rectangle(worldWidth/2, worldHeight/2, 120, worldHeight, 0xD2B48C).setDepth(-50);
+            
+            // ===== RIVIÈRE =====
+            const river = this.add.rectangle(worldWidth/2 + 600, worldHeight/2, 180, worldHeight, 0x4169E1);
+            river.setDepth(-50);
+            
+            // Groupe d'objets avec collision
+            worldObjects = this.physics.add.staticGroup();
+            
+            // Ajout de l'eau comme obstacle
+            const waterCollision = worldObjects.create(worldWidth/2 + 600, worldHeight/2);
+            waterCollision.body.setSize(180, worldHeight);
+            waterCollision.setVisible(false);
+            
+            // ===== VILLAGE : MAISONS =====
+            createHouse(this, worldObjects, 400, 400);
+            createHouse(this, worldObjects, 700, 400);
+            createHouse(this, worldObjects, 400, 700);
+            createHouse(this, worldObjects, 1800, 400);
+            createHouse(this, worldObjects, 2100, 400);
+            createHouse(this, worldObjects, 1800, 700);
+            createHouse(this, worldObjects, 2100, 700);
+            createHouse(this, worldObjects, 400, 1800);
+            createHouse(this, worldObjects, 700, 1800);
+            createHouse(this, worldObjects, 400, 2100);
+            createHouse(this, worldObjects, 700, 2100);
+            createHouse(this, worldObjects, 1800, 1800);
+            createHouse(this, worldObjects, 2100, 1800);
+            createHouse(this, worldObjects, 1800, 2100);
+            
+            // ===== ARBRES =====
+            for (let i = 0; i < 15; i++) {
+                const x = Phaser.Math.Between(200, 2300);
+                const y = Phaser.Math.Between(50, 250);
+                createTree(this, worldObjects, x, y);
+            }
+            for (let i = 0; i < 15; i++) {
+                const x = Phaser.Math.Between(200, 2300);
+                const y = Phaser.Math.Between(2250, 2450);
+                createTree(this, worldObjects, x, y);
+            }
+            createTree(this, worldObjects, 1000, 1000);
+            createTree(this, worldObjects, 1500, 1000);
+            createTree(this, worldObjects, 1000, 1500);
+            createTree(this, worldObjects, 1500, 1500);
+            
+            // ===== BUISSONS (SANS COLLISION) =====
+            for (let i = 0; i < 30; i++) {
+                const x = Phaser.Math.Between(100, worldWidth - 100);
+                const y = Phaser.Math.Between(100, worldHeight - 100);
+                if (Math.abs(x - worldWidth/2) > 150 && Math.abs(y - worldHeight/2) > 150) {
+                    createBush(this, x, y); // Plus de collision !
+                }
+            }
+            
+            // ===== PLACE DU VILLAGE =====
+            const plaza = this.add.rectangle(worldWidth/2, worldHeight/2, 300, 300, 0xDAA520);
+            plaza.setDepth(-1);
+            
+            const fountain = this.add.circle(worldWidth/2, worldHeight/2, 40, 0x87CEEB);
+            const fountainBase = worldObjects.create(worldWidth/2, worldHeight/2);
+            fountainBase.body.setCircle(40);
+            fountainBase.setVisible(false);
+            
+            // ===== JOUEUR =====
+            player = this.physics.add.sprite(worldWidth/2, worldHeight/2 + 200, 'player');
+            player.setCollideWorldBounds(true);
+            player.setDepth(10);
+            
+            // ===== COLLISIONS =====
+            this.physics.add.collider(player, worldObjects);
+            
+            // ===== CAMÉRA PRINCIPALE =====
+            this.cameras.main.startFollow(player, true, 0.1, 0.1);
+            this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
+            this.cameras.main.setZoom(1.2);
+            
+            // ===== MINIMAP =====
+            createMinimap(this, worldWidth, worldHeight);
+            
+            // ===== CONTRÔLES =====
+            cursors = this.input.keyboard.createCursorKeys();
+            this.keys = {
+                z: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z),
+                q: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q),
+                s: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+                d: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+                i: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.I),
+                esc: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
+            };
+            
+            // Ouvrir l'inventaire avec I
+            this.keys.i.on('down', () => toggleInventory(this));
+            this.keys.esc.on('down', () => {
+                if (inventoryOpen) toggleInventory(this);
+            });
+            
+            // ===== UI =====
+            createUI(this);
+            
+            // Appliquer la luminosité initiale
+            applyBrightness(this, settings.brightness);
+        }
+
+        function update() {
+            const speed = 200;
+            
+            player.setVelocity(0);
+            
+            if (!inventoryOpen) {
+                if (cursors.left.isDown || this.keys.q.isDown) {
+                    player.setVelocityX(-speed);
+                } else if (cursors.right.isDown || this.keys.d.isDown) {
+                    player.setVelocityX(speed);
+                }
+                
+                if (cursors.up.isDown || this.keys.z.isDown) {
+                    player.setVelocityY(-speed);
+                } else if (cursors.down.isDown || this.keys.s.isDown) {
+                    player.setVelocityY(speed);
+                }
+                
+                if (player.body.velocity.x !== 0 && player.body.velocity.y !== 0) {
+                    player.setVelocity(
+                        player.body.velocity.x * 0.707,
+                        player.body.velocity.y * 0.707
+                    );
+                }
+            }
+            
+            updateDepth(player);
+        }
+        
+        // ===== CRÉATION D'OBJETS =====
+        
+        function createHouse(scene, group, x, y) {
+            const container = scene.add.container(x, y);
+            const walls = scene.add.rectangle(0, 20, 160, 140, 0x8B4513);
+            const roof = scene.add.triangle(0, -50, -90, 0, 90, 0, 0, -60, 0x8B0000);
+            const door = scene.add.rectangle(0, 70, 40, 60, 0x654321);
+            const window1 = scene.add.rectangle(-40, 0, 30, 30, 0xFFFF99);
+            const window2 = scene.add.rectangle(40, 0, 30, 30, 0xFFFF99);
+            container.add([roof, walls, door, window1, window2]);
+            
+            const collision = group.create(x, y + 30);
+            collision.body.setSize(140, 100);
+            collision.setVisible(false);
+            
+            houses.push(container);
+            return container;
+        }
+        
+        function createTree(scene, group, x, y) {
+            const container = scene.add.container(x, y);
+            const trunk = scene.add.rectangle(0, 20, 20, 40, 0x8B4513);
+            const leaves1 = scene.add.circle(-15, -10, 30, 0x228B22);
+            const leaves2 = scene.add.circle(15, -10, 30, 0x228B22);
+            const leaves3 = scene.add.circle(0, -25, 35, 0x006400);
+            container.add([trunk, leaves1, leaves2, leaves3]);
+            
+            const collision = group.create(x, y + 20);
+            collision.body.setSize(20, 30);
+            collision.setVisible(false);
+            
+            return container;
+        }
+        
+        function createBush(scene, x, y) {
+            const container = scene.add.container(x, y);
+            const bush1 = scene.add.circle(-10, 0, 20, 0x2F4F2F);
+            const bush2 = scene.add.circle(10, 0, 20, 0x2F4F2F);
+            const bush3 = scene.add.circle(0, -8, 18, 0x3CB371);
+            container.add([bush1, bush2, bush3]);
+            
+            bushes.push(container);
+            return container;
+        }
+        
+        function updateDepth(sprite) {
+            sprite.setDepth(sprite.y);
+            houses.forEach(house => house.setDepth(house.y));
+            bushes.forEach(bush => bush.setDepth(bush.y));
+        }
+        
+        // ===== MINIMAP =====
+        
+        function createMinimap(scene, worldWidth, worldHeight) {
+            const minimapWidth = 200;
+            const minimapHeight = 200;
+            
+            minimap = scene.add.rectangle(1024 - minimapWidth/2 - 10, minimapHeight/2 + 10, minimapWidth, minimapHeight, 0x000000, 0.6);
+            minimap.setScrollFactor(0);
+            minimap.setDepth(1000);
+            
+            minimapCam = scene.cameras.add(1024 - minimapWidth - 10, 10, minimapWidth, minimapHeight);
+            minimapCam.setZoom(0.08);
+            minimapCam.setBounds(0, 0, worldWidth, worldHeight);
+            minimapCam.startFollow(player);
+        }
+        
+        // ===== UI ET INVENTAIRE =====
+        
+        function createUI(scene) {
+            // Bouton inventaire
+            inventoryButton = scene.add.text(16, 16, '📦 Inventaire (I)', {
+                fontSize: '20px',
+                fill: '#fff',
+                backgroundColor: '#000',
+                padding: { x: 15, y: 8 }
+            });
+            inventoryButton.setScrollFactor(0);
+            inventoryButton.setDepth(1001);
+            inventoryButton.setInteractive({ useHandCursor: true });
+            inventoryButton.on('pointerdown', () => toggleInventory(scene));
+            
+            // Créer les panels (invisibles au départ)
+            createInventoryPanel(scene);
+        }
+        
+        function createInventoryPanel(scene) {
+            const panelWidth = 800;
+            const panelHeight = 600;
+            const panelX = 512;
+            const panelY = 384;
+            
+            inventoryUI = scene.add.container(panelX, panelY);
+            inventoryUI.setScrollFactor(0);
+            inventoryUI.setDepth(2000);
+            inventoryUI.setVisible(false);
+            
+            // Fond semi-transparent
+            const overlay = scene.add.rectangle(0, 0, 1024, 768, 0x000000, 0.7);
+            overlay.setOrigin(0.5);
+            
+            // Panel principal
+            const panel = scene.add.rectangle(0, 0, panelWidth, panelHeight, 0x2c3e50);
+            panel.setStrokeStyle(4, 0x34495e);
+            
+            // Titre
+            const title = scene.add.text(0, -panelHeight/2 + 30, 'INVENTAIRE', {
+                fontSize: '32px',
+                fill: '#ecf0f1',
+                fontStyle: 'bold'
+            });
+            title.setOrigin(0.5);
+            
+            // Bouton fermer
+            closeButton = scene.add.text(panelWidth/2 - 50, -panelHeight/2 + 20, '✕', {
+                fontSize: '36px',
+                fill: '#e74c3c'
+            });
+            closeButton.setOrigin(0.5);
+            closeButton.setInteractive({ useHandCursor: true });
+            closeButton.on('pointerdown', () => toggleInventory(scene));
+            
+            // Onglets
+            const tabY = -panelHeight/2 + 80;
+            const tabs = [
+                { key: 'map', label: '🗺️ Carte', x: -250 },
+                { key: 'objects', label: '🎒 Objets', x: 0 },
+                { key: 'settings', label: '⚙️ Paramètres', x: 250 }
+            ];
+            
+            tabs.forEach(tab => {
+                const btn = scene.add.text(tab.x, tabY, tab.label, {
+                    fontSize: '22px',
+                    fill: '#bdc3c7',
+                    backgroundColor: '#34495e',
+                    padding: { x: 20, y: 10 }
+                });
+                btn.setOrigin(0.5);
+                btn.setInteractive({ useHandCursor: true });
+                btn.on('pointerdown', () => switchTab(scene, tab.key));
+                tabButtons[tab.key] = btn;
+            });
+            
+            inventoryUI.add([overlay, panel, title, closeButton]);
+            Object.values(tabButtons).forEach(btn => inventoryUI.add(btn));
+            
+            // Créer les contenus des onglets
+            createMapContent(scene, inventoryUI, panelWidth, panelHeight);
+            createObjectsContent(scene, inventoryUI, panelWidth, panelHeight);
+            createSettingsContent(scene, inventoryUI, panelWidth, panelHeight);
+        }
+        
+        function createMapContent(scene, container, w, h) {
+            mapUI = scene.add.container(0, 0);
+            
+            const mapBg = scene.add.rectangle(0, 20, w - 100, h - 200, 0x3CB371);
+            const mapTitle = scene.add.text(0, -h/2 + 140, 'Carte du Monde', {
+                fontSize: '24px',
+                fill: '#fff'
+            });
+            mapTitle.setOrigin(0.5);
+            
+            const mapInfo = scene.add.text(0, 0, '🏘️ Village Central\n\n🌲 Forêt Nord\n🌲 Forêt Sud\n\n💧 Rivière Est\n\n🛤️ Chemins en Croix', {
+                fontSize: '20px',
+                fill: '#fff',
+                align: 'center',
+                lineSpacing: 10
+            });
+            mapInfo.setOrigin(0.5);
+            
+            mapUI.add([mapBg, mapTitle, mapInfo]);
+            container.add(mapUI);
+        }
+        
+        function createObjectsContent(scene, container, w, h) {
+            objectsUI = scene.add.container(0, 0);
+            objectsUI.setVisible(false);
+            
+            const objTitle = scene.add.text(0, -h/2 + 140, 'Objets', {
+                fontSize: '24px',
+                fill: '#fff'
+            });
+            objTitle.setOrigin(0.5);
+            
+            const emptyText = scene.add.text(0, 0, 'Votre inventaire est vide\n\n(Les objets apparaîtront ici)', {
+                fontSize: '20px',
+                fill: '#95a5a6',
+                align: 'center',
+                lineSpacing: 10
+            });
+            emptyText.setOrigin(0.5);
+            
+            objectsUI.add([objTitle, emptyText]);
+            container.add(objectsUI);
+        }
+        
+        function createSettingsContent(scene, container, w, h) {
+            settingsUI = scene.add.container(0, 0);
+            settingsUI.setVisible(false);
+            
+            const setTitle = scene.add.text(0, -h/2 + 140, 'Paramètres', {
+                fontSize: '24px',
+                fill: '#fff'
+            });
+            setTitle.setOrigin(0.5);
+            
+            // Volume
+            const volLabel = scene.add.text(-250, -50, '🔊 Volume:', {
+                fontSize: '20px',
+                fill: '#fff'
+            });
+            const volValue = scene.add.text(100, -50, settings.volume + '%', {
+                fontSize: '20px',
+                fill: '#3498db'
+            });
+            
+            const volMinus = scene.add.text(-50, -50, '−', {
+                fontSize: '30px',
+                fill: '#e74c3c',
+                backgroundColor: '#34495e',
+                padding: { x: 15, y: 5 }
+            });
+            volMinus.setInteractive({ useHandCursor: true });
+            volMinus.on('pointerdown', () => {
+                settings.volume = Math.max(0, settings.volume - 10);
+                volValue.setText(settings.volume + '%');
+            });
+            
+            const volPlus = scene.add.text(20, -50, '+', {
+                fontSize: '30px',
+                fill: '#27ae60',
+                backgroundColor: '#34495e',
+                padding: { x: 15, y: 5 }
+            });
+            volPlus.setInteractive({ useHandCursor: true });
+            volPlus.on('pointerdown', () => {
+                settings.volume = Math.min(100, settings.volume + 10);
+                volValue.setText(settings.volume + '%');
+            });
+            
+            // Luminosité
+            const brightLabel = scene.add.text(-250, 50, '💡 Luminosité:', {
+                fontSize: '20px',
+                fill: '#fff'
+            });
+            const brightValue = scene.add.text(100, 50, settings.brightness + '%', {
+                fontSize: '20px',
+                fill: '#f39c12'
+            });
+            
+            const brightMinus = scene.add.text(-50, 50, '−', {
+                fontSize: '30px',
+                fill: '#e74c3c',
+                backgroundColor: '#34495e',
+                padding: { x: 15, y: 5 }
+            });
+            brightMinus.setInteractive({ useHandCursor: true });
+            brightMinus.on('pointerdown', () => {
+                settings.brightness = Math.max(20, settings.brightness - 10);
+                brightValue.setText(settings.brightness + '%');
+                applyBrightness(scene, settings.brightness);
+            });
+            
+            const brightPlus = scene.add.text(20, 50, '+', {
+                fontSize: '30px',
+                fill: '#27ae60',
+                backgroundColor: '#34495e',
+                padding: { x: 15, y: 5 }
+            });
+            brightPlus.setInteractive({ useHandCursor: true });
+            brightPlus.on('pointerdown', () => {
+                settings.brightness = Math.min(150, settings.brightness + 10);
+                brightValue.setText(settings.brightness + '%');
+                applyBrightness(scene, settings.brightness);
+            });
+            
+            settingsUI.add([setTitle, volLabel, volValue, volMinus, volPlus, brightLabel, brightValue, brightMinus, brightPlus]);
+            container.add(settingsUI);
+        }
+        
+        function toggleInventory(scene) {
+            inventoryOpen = !inventoryOpen;
+            inventoryUI.setVisible(inventoryOpen);
+            
+            if (inventoryOpen) {
+                switchTab(scene, 'map');
+            }
+        }
+        
+        function switchTab(scene, tabKey) {
+            currentTab = tabKey;
+            
+            // Reset tous les onglets
+            Object.keys(tabButtons).forEach(key => {
+                tabButtons[key].setStyle({ fill: '#bdc3c7', backgroundColor: '#34495e' });
+            });
+            
+            // Activer l'onglet sélectionné
+            tabButtons[tabKey].setStyle({ fill: '#fff', backgroundColor: '#3498db' });
+            
+            // Afficher le bon contenu
+            mapUI.setVisible(tabKey === 'map');
+            objectsUI.setVisible(tabKey === 'objects');
+            settingsUI.setVisible(tabKey === 'settings');
+        }
+        
+        function applyBrightness(scene, brightness) {
+            const alpha = 1 - (brightness / 100);
+            scene.cameras.main.setAlpha(Math.max(0.5, Math.min(1, 1 - alpha * 0.5)));
+        }
+        
+        // ===== CRÉATION DES TEXTURES =====
+        
+        function createAllTextures(scene) {
+            const playerGfx = scene.make.graphics({ x: 0, y: 0, add: false });
+            playerGfx.fillStyle(0xFF0000, 1);
+            playerGfx.fillCircle(16, 24, 12);
+            playerGfx.fillCircle(16, 12, 8);
+            playerGfx.fillStyle(0x000000, 1);
+            playerGfx.fillCircle(13, 10, 2);
+            playerGfx.fillCircle(19, 10, 2);
+            playerGfx.generateTexture('player', 32, 32);
+            playerGfx.destroy();
+        }
+    </script>
+</body>
+</html>
