@@ -1,1 +1,639 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokémon RPG Adventure</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.55.2/phaser.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+        }
+        #game-container {
+            box-shadow: 0 10px 50px rgba(0,0,0,0.3);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <script>
+        const config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            parent: 'game-container',
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: 0 },
+                    debug: false
+                }
+            },
+            scene: {
+                preload: preload,
+                create: create,
+                update: update
+            }
+        };
 
+        const game = new Phaser.Game(config);
+        
+        // État du jeu
+        const gameState = {
+            player: {
+                x: 400,
+                y: 300,
+                pokemons: [],
+                pokeballs: 5,
+                hasStarterPokemon: false
+            },
+            wildEncounterChance: 0.02,
+            inBattle: false,
+            currentBattle: null,
+            dialogActive: false,
+            currentDialog: null
+        };
+
+        // Données des Pokémon
+        const pokemonData = {
+            bulbizarre: { name: 'Bulbizarre', type: 'Plante', color: 0x78C850, hp: 45, attack: 49, defense: 49, level: 5 },
+            salameche: { name: 'Salamèche', type: 'Feu', color: 0xF08030, hp: 39, attack: 52, defense: 43, level: 5 },
+            carapuce: { name: 'Carapuce', type: 'Eau', color: 0x6890F0, hp: 44, attack: 48, defense: 65, level: 5 },
+            rattata: { name: 'Rattata', type: 'Normal', color: 0xA8A878, hp: 30, attack: 56, defense: 35, level: 3 },
+            pikachu: { name: 'Pikachu', type: 'Électrik', color: 0xF8D030, hp: 35, attack: 55, defense: 40, level: 4 },
+            aspicot: { name: 'Aspicot', type: 'Insecte', color: 0xA8B820, hp: 40, attack: 35, defense: 30, level: 2 },
+            roucool: { name: 'Roucool', type: 'Vol', color: 0xA890F0, hp: 40, attack: 45, defense: 40, level: 3 }
+        };
+
+        let playerSprite, cursors, worldLayer, interactKey, menuKey;
+        let dialogBox, dialogText, battleScene, uiCamera;
+
+        function preload() {
+            // Pas besoin de précharger d'images
+        }
+
+        function create() {
+            // Créer le monde
+            createWorld(this);
+            
+            // Créer le joueur
+            playerSprite = this.add.circle(gameState.player.x, gameState.player.y, 15, 0xff0000);
+            this.physics.add.existing(playerSprite);
+            playerSprite.body.setCollideWorldBounds(true);
+            
+            // Contrôles
+            cursors = this.input.keyboard.createCursorKeys();
+            interactKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+            menuKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
+            
+            // Créer les collisions
+            this.physics.add.collider(playerSprite, worldLayer);
+            
+            // UI Camera
+            uiCamera = this.cameras.add(0, 0, 800, 600);
+            uiCamera.setScroll(0, 0);
+            uiCamera.ignore(worldLayer);
+            uiCamera.ignore(playerSprite);
+            
+            // Interface utilisateur
+            createUI(this);
+            
+            // Afficher le dialogue d'introduction
+            showDialog(this, "Bienvenue dans le monde des Pokémon !\n\nUtilise les flèches pour te déplacer.\nAppuie sur ESPACE pour interagir.\nAppuie sur M pour ouvrir ton menu.", () => {
+                showDialog(this, "Rends-toi au laboratoire du Professeur Chen\npour choisir ton premier Pokémon !", null);
+            });
+        }
+
+        function createWorld(scene) {
+            const graphics = scene.add.graphics();
+            
+            // Herbes (zone de rencontre)
+            for (let i = 0; i < 50; i++) {
+                const x = Phaser.Math.Between(100, 700);
+                const y = Phaser.Math.Between(100, 500);
+                graphics.fillStyle(0x7EC850, 0.6);
+                graphics.fillRect(x, y, 20, 20);
+            }
+            
+            // Laboratoire du Professeur Chen
+            graphics.fillStyle(0x8B4513, 1);
+            graphics.fillRect(350, 50, 100, 80);
+            graphics.fillStyle(0xFF0000, 1);
+            graphics.fillRect(350, 30, 100, 20);
+            
+            const labText = scene.add.text(370, 75, 'LABO', { 
+                fontSize: '16px', 
+                fontStyle: 'bold',
+                color: '#fff' 
+            });
+            labText.setDepth(10);
+            
+            // Zone du laboratoire (pour détecter l'entrée)
+            const labZone = scene.add.zone(400, 90, 100, 80);
+            scene.physics.add.existing(labZone);
+            labZone.body.setImmovable(true);
+            labZone.isLab = true;
+            
+            // Village
+            graphics.fillStyle(0xD2B48C, 1);
+            graphics.fillRect(50, 400, 80, 60);
+            graphics.fillRect(150, 420, 70, 60);
+            graphics.fillRect(650, 380, 90, 70);
+            
+            const villageText = scene.add.text(70, 520, 'BOURG PALETTE', { 
+                fontSize: '14px', 
+                fontStyle: 'bold',
+                color: '#fff',
+                backgroundColor: '#000',
+                padding: { x: 5, y: 3 }
+            });
+            
+            // Route
+            graphics.fillStyle(0x8B7355, 1);
+            graphics.fillRect(0, 250, 800, 60);
+            
+            worldLayer = scene.physics.add.staticGroup();
+            
+            // Ajouter la zone du labo aux collisions
+            scene.physics.add.overlap(playerSprite, labZone, () => {
+                if (Phaser.Input.Keyboard.JustDown(interactKey)) {
+                    enterLab(scene);
+                }
+            });
+        }
+
+        function createUI(scene) {
+            // Boîte de dialogue
+            dialogBox = scene.add.graphics();
+            dialogBox.fillStyle(0x000000, 0.8);
+            dialogBox.fillRoundedRect(50, 400, 700, 150, 10);
+            dialogBox.lineStyle(4, 0xffffff, 1);
+            dialogBox.strokeRoundedRect(50, 400, 700, 150, 10);
+            dialogBox.setScrollFactor(0);
+            dialogBox.setDepth(100);
+            dialogBox.setVisible(false);
+            
+            dialogText = scene.add.text(70, 420, '', {
+                fontSize: '18px',
+                color: '#ffffff',
+                wordWrap: { width: 660 }
+            });
+            dialogText.setScrollFactor(0);
+            dialogText.setDepth(101);
+            dialogText.setVisible(false);
+            
+            uiCamera.ignore([dialogBox, dialogText]);
+        }
+
+        function showDialog(scene, text, callback) {
+            gameState.dialogActive = true;
+            dialogBox.setVisible(true);
+            dialogText.setVisible(true);
+            dialogText.setText(text);
+            
+            const closeDialog = () => {
+                if (Phaser.Input.Keyboard.JustDown(interactKey)) {
+                    dialogBox.setVisible(false);
+                    dialogText.setVisible(false);
+                    gameState.dialogActive = false;
+                    scene.input.keyboard.off('keydown-SPACE', closeDialog);
+                    if (callback) callback();
+                }
+            };
+            
+            scene.input.keyboard.on('keydown-SPACE', closeDialog);
+        }
+
+        function enterLab(scene) {
+            if (gameState.player.hasStarterPokemon) {
+                showDialog(scene, "Professeur Chen : Prends soin de ton Pokémon !\nN'oublie pas d'explorer les hautes herbes.", null);
+                return;
+            }
+            
+            showDialog(scene, "Professeur Chen : Bienvenue dans mon laboratoire !\nChoisis ton premier Pokémon partenaire.", () => {
+                showStarterSelection(scene);
+            });
+        }
+
+        function showStarterSelection(scene) {
+            const selectionBg = scene.add.graphics();
+            selectionBg.fillStyle(0x000000, 0.9);
+            selectionBg.fillRect(0, 0, 800, 600);
+            selectionBg.setScrollFactor(0);
+            selectionBg.setDepth(200);
+            
+            const title = scene.add.text(400, 80, 'Choisis ton Pokémon de départ', {
+                fontSize: '28px',
+                fontStyle: 'bold',
+                color: '#fff'
+            });
+            title.setOrigin(0.5);
+            title.setScrollFactor(0);
+            title.setDepth(201);
+            
+            const starters = [
+                { key: 'bulbizarre', x: 200, y: 300 },
+                { key: 'salameche', x: 400, y: 300 },
+                { key: 'carapuce', x: 600, y: 300 }
+            ];
+            
+            starters.forEach(starter => {
+                const data = pokemonData[starter.key];
+                const ball = scene.add.circle(starter.x, starter.y, 40, data.color);
+                ball.setScrollFactor(0);
+                ball.setDepth(201);
+                ball.setInteractive();
+                
+                const name = scene.add.text(starter.x, starter.y + 70, data.name, {
+                    fontSize: '20px',
+                    fontStyle: 'bold',
+                    color: '#fff'
+                });
+                name.setOrigin(0.5);
+                name.setScrollFactor(0);
+                name.setDepth(201);
+                
+                const type = scene.add.text(starter.x, starter.y + 95, data.type, {
+                    fontSize: '16px',
+                    color: '#ffeb3b'
+                });
+                type.setOrigin(0.5);
+                type.setScrollFactor(0);
+                type.setDepth(201);
+                
+                ball.on('pointerover', () => {
+                    ball.setScale(1.1);
+                });
+                
+                ball.on('pointerout', () => {
+                    ball.setScale(1);
+                });
+                
+                ball.on('pointerdown', () => {
+                    selectStarter(scene, starter.key, selectionBg, title, ball, name, type);
+                });
+            });
+        }
+
+        function selectStarter(scene, starterKey, ...uiElements) {
+            const pokemon = createPokemon(starterKey);
+            gameState.player.pokemons.push(pokemon);
+            gameState.player.hasStarterPokemon = true;
+            
+            uiElements.forEach(el => el.destroy());
+            
+            showDialog(scene, `Professeur Chen : Excellent choix ! ${pokemon.name}\nsera un excellent partenaire !\n\nVa explorer les hautes herbes pour rencontrer\nd'autres Pokémon sauvages !`, null);
+        }
+
+        function createPokemon(key) {
+            const data = pokemonData[key];
+            return {
+                ...data,
+                currentHp: data.hp,
+                maxHp: data.hp,
+                xp: 0,
+                xpToNext: 100
+            };
+        }
+
+        function update() {
+            if (gameState.dialogActive || gameState.inBattle) {
+                return;
+            }
+            
+            const speed = 200;
+            playerSprite.body.setVelocity(0);
+            
+            if (cursors.left.isDown) {
+                playerSprite.body.setVelocityX(-speed);
+            } else if (cursors.right.isDown) {
+                playerSprite.body.setVelocityX(speed);
+            }
+            
+            if (cursors.up.isDown) {
+                playerSprite.body.setVelocityY(-speed);
+            } else if (cursors.down.isDown) {
+                playerSprite.body.setVelocityY(speed);
+            }
+            
+            // Rencontres aléatoires dans les herbes
+            if (gameState.player.hasStarterPokemon && playerSprite.body.velocity.length() > 0) {
+                if (Math.random() < gameState.wildEncounterChance) {
+                    triggerWildEncounter(this);
+                }
+            }
+            
+            if (Phaser.Input.Keyboard.JustDown(menuKey)) {
+                showMenu(this);
+            }
+        }
+
+        function triggerWildEncounter(scene) {
+            const wildPokemons = ['rattata', 'pikachu', 'aspicot', 'roucool'];
+            const randomPokemon = wildPokemons[Phaser.Math.Between(0, wildPokemons.length - 1)];
+            
+            gameState.inBattle = true;
+            startBattle(scene, createPokemon(randomPokemon));
+        }
+
+        function startBattle(scene, wildPokemon) {
+            // Arrêter le mouvement
+            playerSprite.body.setVelocity(0);
+            
+            // Créer l'écran de combat
+            const battleBg = scene.add.graphics();
+            battleBg.fillStyle(0x1a1a2e, 1);
+            battleBg.fillRect(0, 0, 800, 600);
+            battleBg.setScrollFactor(0);
+            battleBg.setDepth(150);
+            
+            // Pokémon sauvage
+            const wildCircle = scene.add.circle(600, 200, 50, wildPokemon.color);
+            wildCircle.setScrollFactor(0);
+            wildCircle.setDepth(151);
+            
+            const wildName = scene.add.text(600, 280, `${wildPokemon.name} Niv.${wildPokemon.level}`, {
+                fontSize: '20px',
+                fontStyle: 'bold',
+                color: '#fff'
+            });
+            wildName.setOrigin(0.5);
+            wildName.setScrollFactor(0);
+            wildName.setDepth(151);
+            
+            const wildHpBar = scene.add.graphics();
+            wildHpBar.setScrollFactor(0);
+            wildHpBar.setDepth(151);
+            updateHpBar(wildHpBar, 550, 300, wildPokemon.currentHp, wildPokemon.maxHp);
+            
+            // Pokémon du joueur
+            const playerPokemon = gameState.player.pokemons[0];
+            const playerCircle = scene.add.circle(200, 400, 50, playerPokemon.color);
+            playerCircle.setScrollFactor(0);
+            playerCircle.setDepth(151);
+            
+            const playerName = scene.add.text(200, 480, `${playerPokemon.name} Niv.${playerPokemon.level}`, {
+                fontSize: '20px',
+                fontStyle: 'bold',
+                color: '#fff'
+            });
+            playerName.setOrigin(0.5);
+            playerName.setScrollFactor(0);
+            playerName.setDepth(151);
+            
+            const playerHpBar = scene.add.graphics();
+            playerHpBar.setScrollFactor(0);
+            playerHpBar.setDepth(151);
+            updateHpBar(playerHpBar, 150, 500, playerPokemon.currentHp, playerPokemon.maxHp);
+            
+            // Menu de combat
+            showBattleMenu(scene, wildPokemon, playerPokemon, [battleBg, wildCircle, wildName, wildHpBar, playerCircle, playerName, playerHpBar]);
+        }
+
+        function updateHpBar(graphics, x, y, current, max) {
+            graphics.clear();
+            const width = 100;
+            const height = 8;
+            const ratio = current / max;
+            
+            graphics.fillStyle(0x333333, 1);
+            graphics.fillRect(x, y, width, height);
+            
+            let color = 0x00ff00;
+            if (ratio < 0.5) color = 0xffff00;
+            if (ratio < 0.25) color = 0xff0000;
+            
+            graphics.fillStyle(color, 1);
+            graphics.fillRect(x, y, width * ratio, height);
+        }
+
+        function showBattleMenu(scene, wildPokemon, playerPokemon, battleElements) {
+            const menuBg = scene.add.graphics();
+            menuBg.fillStyle(0x000000, 0.9);
+            menuBg.fillRoundedRect(400, 420, 380, 160, 10);
+            menuBg.lineStyle(3, 0xffffff, 1);
+            menuBg.strokeRoundedRect(400, 420, 380, 160, 10);
+            menuBg.setScrollFactor(0);
+            menuBg.setDepth(152);
+            
+            const actions = [
+                { text: 'ATTAQUER', x: 450, y: 450 },
+                { text: 'CAPTURER', x: 620, y: 450 },
+                { text: 'POKÉMON', x: 450, y: 510 },
+                { text: 'FUIR', x: 620, y: 510 }
+            ];
+            
+            actions.forEach(action => {
+                const btn = scene.add.text(action.x, action.y, action.text, {
+                    fontSize: '18px',
+                    fontStyle: 'bold',
+                    color: '#fff',
+                    backgroundColor: '#444',
+                    padding: { x: 20, y: 10 }
+                });
+                btn.setScrollFactor(0);
+                btn.setDepth(153);
+                btn.setInteractive();
+                
+                btn.on('pointerover', () => {
+                    btn.setBackgroundColor('#666');
+                });
+                
+                btn.on('pointerout', () => {
+                    btn.setBackgroundColor('#444');
+                });
+                
+                btn.on('pointerdown', () => {
+                    handleBattleAction(scene, action.text, wildPokemon, playerPokemon, [...battleElements, menuBg, btn, ...actions.map(a => btn)]);
+                });
+                
+                battleElements.push(btn);
+            });
+            
+            battleElements.push(menuBg);
+        }
+
+        function handleBattleAction(scene, action, wildPokemon, playerPokemon, battleElements) {
+            if (action === 'ATTAQUER') {
+                performAttack(scene, playerPokemon, wildPokemon, battleElements);
+            } else if (action === 'CAPTURER') {
+                attemptCapture(scene, wildPokemon, battleElements);
+            } else if (action === 'FUIR') {
+                endBattle(scene, battleElements, 'Tu as fui le combat !');
+            }
+        }
+
+        function performAttack(scene, attacker, defender, battleElements) {
+            const damage = Math.max(1, Math.floor(attacker.attack * (Math.random() * 0.4 + 0.8) - defender.defense * 0.5));
+            defender.currentHp = Math.max(0, defender.currentHp - damage);
+            
+            updateHpBar(battleElements[3], 550, 300, defender.currentHp, defender.maxHp);
+            
+            if (defender.currentHp <= 0) {
+                endBattle(scene, battleElements, `${defender.name} est K.O. !\nTu as gagné !`);
+                attacker.xp += 50;
+                if (attacker.xp >= attacker.xpToNext) {
+                    levelUp(attacker);
+                }
+            } else {
+                scene.time.delayedCall(500, () => {
+                    enemyAttack(scene, defender, attacker, battleElements);
+                });
+            }
+        }
+
+        function enemyAttack(scene, attacker, defender, battleElements) {
+            const damage = Math.max(1, Math.floor(attacker.attack * (Math.random() * 0.4 + 0.8) - defender.defense * 0.5));
+            defender.currentHp = Math.max(0, defender.currentHp - damage);
+            
+            updateHpBar(battleElements[6], 150, 500, defender.currentHp, defender.maxHp);
+            
+            if (defender.currentHp <= 0) {
+                endBattle(scene, battleElements, `${defender.name} est K.O. !\nTu as perdu...`);
+            }
+        }
+
+        function attemptCapture(scene, wildPokemon, battleElements) {
+            if (gameState.player.pokeballs <= 0) {
+                const msg = scene.add.text(400, 300, 'Plus de Pokéballs !', {
+                    fontSize: '24px',
+                    color: '#ff0000',
+                    backgroundColor: '#000',
+                    padding: { x: 20, y: 10 }
+                });
+                msg.setOrigin(0.5);
+                msg.setScrollFactor(0);
+                msg.setDepth(160);
+                
+                scene.time.delayedCall(1500, () => msg.destroy());
+                return;
+            }
+            
+            gameState.player.pokeballs--;
+            
+            const captureRate = (1 - wildPokemon.currentHp / wildPokemon.maxHp) * 0.7 + 0.3;
+            const captured = Math.random() < captureRate;
+            
+            if (captured) {
+                wildPokemon.currentHp = wildPokemon.maxHp;
+                gameState.player.pokemons.push(wildPokemon);
+                endBattle(scene, battleElements, `${wildPokemon.name} a été capturé !\nFélicitations !`);
+            } else {
+                const msg = scene.add.text(400, 300, `${wildPokemon.name} s'est échappé !`, {
+                    fontSize: '24px',
+                    color: '#ffff00',
+                    backgroundColor: '#000',
+                    padding: { x: 20, y: 10 }
+                });
+                msg.setOrigin(0.5);
+                msg.setScrollFactor(0);
+                msg.setDepth(160);
+                
+                scene.time.delayedCall(1500, () => {
+                    msg.destroy();
+                    enemyAttack(scene, wildPokemon, gameState.player.pokemons[0], battleElements);
+                });
+            }
+        }
+
+        function levelUp(pokemon) {
+            pokemon.level++;
+            pokemon.maxHp += 5;
+            pokemon.currentHp = pokemon.maxHp;
+            pokemon.attack += 3;
+            pokemon.defense += 2;
+            pokemon.xp = 0;
+            pokemon.xpToNext = Math.floor(pokemon.xpToNext * 1.2);
+        }
+
+        function endBattle(scene, battleElements, message) {
+            gameState.inBattle = false;
+            
+            showDialog(scene, message, () => {
+                battleElements.forEach(el => el.destroy());
+            });
+        }
+
+        function showMenu(scene) {
+            if (gameState.inBattle) return;
+            
+            const menuBg = scene.add.graphics();
+            menuBg.fillStyle(0x000000, 0.95);
+            menuBg.fillRect(0, 0, 800, 600);
+            menuBg.setScrollFactor(0);
+            menuBg.setDepth(180);
+            
+            const title = scene.add.text(400, 50, 'MENU', {
+                fontSize: '32px',
+                fontStyle: 'bold',
+                color: '#fff'
+            });
+            title.setOrigin(0.5);
+            title.setScrollFactor(0);
+            title.setDepth(181);
+            
+            const pokeballsText = scene.add.text(100, 120, `Pokéballs: ${gameState.player.pokeballs}`, {
+                fontSize: '20px',
+                color: '#fff'
+            });
+            pokeballsText.setScrollFactor(0);
+            pokeballsText.setDepth(181);
+            
+            const pokemonTitle = scene.add.text(100, 180, 'Tes Pokémon:', {
+                fontSize: '24px',
+                fontStyle: 'bold',
+                color: '#ffeb3b'
+            });
+            pokemonTitle.setScrollFactor(0);
+            pokemonTitle.setDepth(181);
+            
+            gameState.player.pokemons.forEach((pokemon, i) => {
+                const y = 230 + i * 80;
+                
+                const circle = scene.add.circle(130, y, 30, pokemon.color);
+                circle.setScrollFactor(0);
+                circle.setDepth(181);
+                
+                const info = scene.add.text(180, y - 20, 
+                    `${pokemon.name} - Niv.${pokemon.level}\nPV: ${pokemon.currentHp}/${pokemon.maxHp} | ATT: ${pokemon.attack} | DEF: ${pokemon.defense}`, {
+                    fontSize: '16px',
+                    color: '#fff'
+                });
+                info.setScrollFactor(0);
+                info.setDepth(181);
+            });
+            
+            const closeBtn = scene.add.text(400, 550, 'FERMER (M)', {
+                fontSize: '20px',
+                fontStyle: 'bold',
+                color: '#fff',
+                backgroundColor: '#f44336',
+                padding: { x: 30, y: 15 }
+            });
+            closeBtn.setOrigin(0.5);
+            closeBtn.setScrollFactor(0);
+            closeBtn.setDepth(181);
+            closeBtn.setInteractive();
+            
+            const elements = [menuBg, title, pokeballsText, pokemonTitle, closeBtn];
+            
+            const closeMenu = () => {
+                elements.forEach(el => el.destroy());
+                scene.input.keyboard.off('keydown-M', closeMenu);
+            };
+            
+            closeBtn.on('pointerdown', closeMenu);
+            scene.input.keyboard.on('keydown-M', closeMenu);
+        }
+    </script>
+</body>
+</html>
