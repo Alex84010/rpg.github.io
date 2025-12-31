@@ -3,789 +3,848 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pokémon RPG</title>
+    <title>Mon RPG Pokémon</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Arial', sans-serif;
-            background: #2c3e50;
+            background: #1a1a2e;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
             overflow: hidden;
         }
-
-        #gameCanvas {
-            border: 4px solid #34495e;
-            display: block;
-            margin: 20px auto;
-            background: #7ec850;
+        #game-container { position: relative; box-shadow: 0 10px 50px rgba(0,0,0,0.5); }
+        
+        /* Prompt d'interaction */
+        #interact-prompt {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -200%);
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            padding: 8px 15px;
+            border: 2px solid #fff;
+            font-size: 12px;
+            display: none;
+            animation: float 2s ease-in-out infinite;
         }
-
-        #ui {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            min-width: 200px;
+        #interact-prompt.active { display: block; }
+        @keyframes float {
+            0%, 100% { transform: translate(-50%, -200%); }
+            50% { transform: translate(-50%, -210%); }
         }
-
-        #dialogue {
-            position: fixed;
+        
+        /* Boîte de dialogue */
+        #dialog-box {
+            position: absolute;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            max-width: 600px;
             width: 90%;
+            background: #fff;
+            border: 4px solid #000;
+            padding: 20px;
             display: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
-
-        #dialogue.active {
-            display: block;
+        #dialog-box.active { display: block; }
+        #dialog-text {
+            color: #000;
+            font-size: 14px;
+            line-height: 1.6;
+            min-height: 60px;
         }
-
-        #dialogue-text {
-            margin-bottom: 10px;
-            line-height: 1.5;
+        #dialog-prompt {
+            position: absolute;
+            bottom: 10px;
+            right: 20px;
+            font-size: 12px;
+            animation: blink 1s infinite;
         }
-
-        #dialogue-continue {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 5px;
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        /* Menu principal */
+        #main-menu {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.9);
+            border: 3px solid #fff;
+            padding: 10px;
+            color: #fff;
+            font-size: 12px;
+            display: none;
+        }
+        #main-menu.active { display: block; }
+        .menu-item {
+            padding: 8px 15px;
+            margin: 5px 0;
+            background: #333;
+            border: 2px solid #666;
             cursor: pointer;
-            float: right;
         }
-
-        #dialogue-continue:hover {
-            background: #2980b9;
-        }
-
-        .choice-btn {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            margin: 5px;
-            border-radius: 5px;
-            cursor: pointer;
-            display: block;
-            width: 100%;
-        }
-
-        .choice-btn:hover {
-            background: #c0392b;
-        }
-
-        #battle {
-            position: fixed;
+        .menu-item:hover { background: #555; border-color: #fff; }
+        
+        /* Écran de combat */
+        #battle-screen {
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.95);
+            background: linear-gradient(to bottom, #87ceeb 0%, #98d98e 100%);
             display: none;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
         }
-
-        #battle.active {
-            display: flex;
-        }
-
-        .pokemon-display {
+        #battle-screen.active { display: flex; }
+        .battle-area {
+            flex: 2;
             display: flex;
             justify-content: space-around;
-            width: 80%;
-            margin-bottom: 30px;
+            align-items: center;
+            padding: 40px;
         }
-
-        .pokemon-card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
+        .monster {
             text-align: center;
-            min-width: 200px;
         }
-
-        .pokemon-shape {
-            width: 80px;
-            height: 80px;
-            margin: 10px auto;
-            border-radius: 50%;
-        }
-
-        .hp-bar {
-            width: 100%;
-            height: 20px;
-            background: #ddd;
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 10px 0;
-        }
-
-        .hp-fill {
-            height: 100%;
-            background: #2ecc71;
-            transition: width 0.3s;
-        }
-
-        .hp-fill.low {
-            background: #e74c3c;
-        }
-
-        .battle-actions {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .battle-btn {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-
-        .battle-btn:hover {
-            background: #2980b9;
-        }
-
-        .battle-btn.capture {
-            background: #e74c3c;
-        }
-
-        .battle-btn.capture:hover {
-            background: #c0392b;
-        }
-
-        #stats {
-            margin-top: 10px;
-        }
-
-        .stat-line {
-            margin: 5px 0;
-            font-size: 14px;
-        }
-
-        #pokemon-team {
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 2px solid #ddd;
-        }
-
-        .team-pokemon {
+        .monster-sprite {
+            width: 120px;
+            height: 120px;
+            background: #fff;
+            border: 3px solid #000;
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
-            margin: 5px 0;
-            padding: 5px;
-            background: #f8f9fa;
-            border-radius: 5px;
+            justify-content: center;
+            font-size: 60px;
         }
-
-        .team-pokemon-shape {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            margin-right: 10px;
+        .monster-info {
+            background: rgba(255,255,255,0.9);
+            padding: 10px;
+            border: 2px solid #000;
+            font-size: 12px;
         }
-
-        #battle-log {
-            background: rgba(255, 255, 255, 0.9);
+        .hp-bar {
+            width: 100%;
+            height: 10px;
+            background: #ccc;
+            border: 1px solid #000;
+            margin-top: 5px;
+        }
+        .hp-fill {
+            height: 100%;
+            background: linear-gradient(to bottom, #00ff00, #008800);
+            transition: width 0.3s;
+        }
+        .battle-ui {
+            flex: 1;
+            background: #fff;
+            border-top: 4px solid #000;
+            padding: 20px;
+        }
+        .battle-menu {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .battle-button {
             padding: 15px;
-            border-radius: 10px;
-            margin-top: 20px;
-            max-width: 600px;
-            min-height: 100px;
-            max-height: 150px;
+            background: #f0f0f0;
+            border: 3px solid #000;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .battle-button:hover { background: #ffeb3b; }
+        .battle-message {
+            margin-bottom: 15px;
+            font-size: 14px;
+            min-height: 40px;
+        }
+        
+        /* Inventaire */
+        #inventory-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 80%;
+            background: #fff;
+            border: 4px solid #000;
+            padding: 20px;
+            display: none;
+            flex-direction: column;
+        }
+        #inventory-screen.active { display: flex; }
+        .inventory-header {
+            font-size: 16px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #000;
+        }
+        .inventory-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
             overflow-y: auto;
+            flex: 1;
         }
-
-        .log-entry {
-            margin: 5px 0;
-            padding: 5px;
-            border-left: 3px solid #3498db;
-            padding-left: 10px;
+        .inventory-item {
+            background: #f0f0f0;
+            border: 2px solid #000;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            cursor: pointer;
         }
+        .inventory-item:hover { background: #ffeb3b; }
+        .item-icon { font-size: 30px; margin-bottom: 10px; }
+        .close-button {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f44336;
+            color: #fff;
+            border: 3px solid #000;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        /* Équipe */
+        #team-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 80%;
+            background: #fff;
+            border: 4px solid #000;
+            padding: 20px;
+            display: none;
+            flex-direction: column;
+        }
+        #team-screen.active { display: flex; }
+        .team-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .team-monster {
+            background: #f0f0f0;
+            border: 2px solid #000;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 12px;
+        }
+        .team-monster-sprite {
+            width: 60px;
+            height: 60px;
+            background: #fff;
+            border: 2px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+        }
+        .team-monster-info { flex: 1; }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    
-    <div id="ui">
-        <h3>Joueur</h3>
-        <div class="stat-line">Position: <span id="player-pos">0, 0</span></div>
-        <div class="stat-line">Pokéballs: <span id="pokeball-count">5</span></div>
-        <div id="pokemon-team">
-            <strong>Équipe:</strong>
-            <div id="team-list"></div>
+    <div id="game-container">
+        <div id="interact-prompt">Appuyez sur ESPACE</div>
+        
+        <div id="dialog-box">
+            <div id="dialog-text"></div>
+            <div id="dialog-prompt">▼</div>
         </div>
-    </div>
-
-    <div id="dialogue">
-        <div id="dialogue-text"></div>
-        <div id="dialogue-choices"></div>
-        <button id="dialogue-continue">Continuer</button>
-    </div>
-
-    <div id="battle">
-        <div class="pokemon-display">
-            <div class="pokemon-card">
-                <h3>Pokémon Sauvage</h3>
-                <div id="wild-pokemon-shape" class="pokemon-shape"></div>
-                <div id="wild-pokemon-name"></div>
-                <div class="hp-bar">
-                    <div id="wild-hp" class="hp-fill" style="width: 100%"></div>
+        
+        <div id="main-menu">
+            <div class="menu-item" onclick="toggleInventory()">📦 SAC</div>
+            <div class="menu-item" onclick="toggleTeam()">⚔️ ÉQUIPE</div>
+            <div class="menu-item" onclick="closeMenu()">❌ FERMER</div>
+        </div>
+        
+        <div id="battle-screen">
+            <div class="battle-area">
+                <div class="monster enemy-monster">
+                    <div class="monster-info">
+                        <div id="enemy-name">Monstre Sauvage</div>
+                        <div class="hp-bar">
+                            <div class="hp-fill" id="enemy-hp" style="width: 100%"></div>
+                        </div>
+                        <div id="enemy-level">Niv. 5</div>
+                    </div>
+                    <div class="monster-sprite" id="enemy-sprite">🐉</div>
                 </div>
-                <div id="wild-pokemon-hp-text">PV: 100/100</div>
+                <div class="monster player-monster">
+                    <div class="monster-sprite" id="player-monster-sprite">🔥</div>
+                    <div class="monster-info">
+                        <div id="player-monster-name">Mon Monstre</div>
+                        <div class="hp-bar">
+                            <div class="hp-fill" id="player-monster-hp" style="width: 100%"></div>
+                        </div>
+                        <div id="player-monster-level">Niv. 5</div>
+                    </div>
+                </div>
             </div>
-            <div class="pokemon-card">
-                <h3>Votre Pokémon</h3>
-                <div id="player-pokemon-shape" class="pokemon-shape"></div>
-                <div id="player-pokemon-name"></div>
-                <div class="hp-bar">
-                    <div id="player-hp" class="hp-fill" style="width: 100%"></div>
+            <div class="battle-ui">
+                <div class="battle-message" id="battle-message">Un monstre sauvage apparaît !</div>
+                <div class="battle-menu">
+                    <div class="battle-button" onclick="battleAction('attack')">⚔️ ATTAQUE</div>
+                    <div class="battle-button" onclick="battleAction('item')">🎒 OBJET</div>
+                    <div class="battle-button" onclick="battleAction('capture')">⚾ CAPTURER</div>
+                    <div class="battle-button" onclick="battleAction('run')">🏃 FUIR</div>
                 </div>
-                <div id="player-pokemon-hp-text">PV: 100/100</div>
             </div>
         </div>
-        <div id="battle-log"></div>
-        <div class="battle-actions">
-            <button class="battle-btn" onclick="game.battle.attack()">Attaquer</button>
-            <button class="battle-btn capture" onclick="game.battle.capture()">Capturer</button>
-            <button class="battle-btn" onclick="game.battle.flee()">Fuir</button>
+        
+        <div id="inventory-screen">
+            <div class="inventory-header">
+                💰 Argent: <span id="money-display">500</span> ₽
+            </div>
+            <div class="inventory-grid" id="inventory-grid"></div>
+            <div class="close-button" onclick="toggleInventory()">FERMER</div>
+        </div>
+        
+        <div id="team-screen">
+            <div class="inventory-header">Mon Équipe</div>
+            <div class="team-list" id="team-list"></div>
+            <div class="close-button" onclick="toggleTeam()">FERMER</div>
         </div>
     </div>
 
     <script>
-         const game = {
-            canvas: null,
-            ctx: null,
-            player: {
-                x: 400,
-                y: 300,
-                size: 30,
-                speed: 3,
-                color: '#e74c3c',
-                pokeballs: 5,
-                team: [],
-                hasStarter: false
-            },
-            keys: {},
-            map: {
-                width: 800,
-                height: 600,
-                tiles: []
-            },
-            npcs: [],
-            buildings: [],
-            wildGrass: [],
-            dialogue: {
-                active: false,
-                currentDialogue: null,
-                callback: null
-            },
-            battle: null,
-
-            init() {
-                this.canvas = document.getElementById('gameCanvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.setupMap();
-                this.setupEventListeners();
-                this.gameLoop();
-            },
-
-            setupMap() {
-                // Laboratoire du Professeur Chen
-                this.buildings.push({
-                    x: 350,
-                    y: 200,
-                    width: 100,
-                    height: 80,
-                    color: '#8e44ad',
-                    type: 'lab',
-                    name: 'Laboratoire'
-                });
-
-                // Centre Pokémon
-                this.buildings.push({
-                    x: 100,
-                    y: 100,
-                    width: 80,
-                    height: 80,
-                    color: '#e74c3c',
-                    type: 'pokecenter',
-                    name: 'Centre Pokémon'
-                });
-
-                // Magasin
-                this.buildings.push({
-                    x: 620,
-                    y: 100,
-                    width: 80,
-                    height: 80,
-                    color: '#f39c12',
-                    type: 'shop',
-                    name: 'Magasin'
-                });
-
-                // Professeur Chen
-                this.npcs.push({
-                    x: 400,
-                    y: 240,
-                    size: 25,
-                    color: '#3498db',
-                    name: 'Prof. Chen',
-                    type: 'professor'
-                });
-
-                // Herbes hautes (zones de rencontre)
-                for (let i = 0; i < 10; i++) {
-                    this.wildGrass.push({
-                        x: Math.random() * 700 + 50,
-                        y: Math.random() * 500 + 50,
-                        width: 60,
-                        height: 60,
-                        color: '#27ae60'
-                    });
-                }
-
-                // Routes
-                this.buildings.push({
-                    x: 0,
-                    y: 250,
-                    width: 800,
-                    height: 100,
-                    color: '#95a5a6',
-                    type: 'road',
-                    name: 'Route 1'
-                });
-            },
-
-            setupEventListeners() {
-                document.addEventListener('keydown', (e) => {
-                    this.keys[e.key] = true;
-                    if (e.key === ' ' && !this.dialogue.active && !this.battle) {
-                        this.checkInteraction();
-                    }
-                });
-
-                document.addEventListener('keyup', (e) => {
-                    this.keys[e.key] = false;
-                });
-
-                document.getElementById('dialogue-continue').addEventListener('click', () => {
-                    this.closeDialogue();
-                });
-            },
-
-            update() {
-                if (this.dialogue.active || this.battle) return;
-
-                let newX = this.player.x;
-                let newY = this.player.y;
-
-                if (this.keys['ArrowLeft'] || this.keys['q']) newX -= this.player.speed;
-                if (this.keys['ArrowRight'] || this.keys['d']) newX += this.player.speed;
-                if (this.keys['ArrowUp'] || this.keys['z']) newY -= this.player.speed;
-                if (this.keys['ArrowDown'] || this.keys['s']) newY += this.player.speed;
-
-                // Limites de la carte
-                newX = Math.max(this.player.size, Math.min(this.map.width - this.player.size, newX));
-                newY = Math.max(this.player.size, Math.min(this.map.height - this.player.size, newY));
-
-                this.player.x = newX;
-                this.player.y = newY;
-
-                // Vérification des herbes hautes
-                this.checkWildEncounter();
-
-                // Mise à jour UI
-                document.getElementById('player-pos').textContent = `${Math.floor(this.player.x)}, ${Math.floor(this.player.y)}`;
-            },
-
-            draw() {
-                this.ctx.fillStyle = '#7ec850';
-                this.ctx.fillRect(0, 0, this.map.width, this.map.height);
-
-                // Dessiner les routes
-                this.buildings.forEach(building => {
-                    if (building.type === 'road') {
-                        this.ctx.fillStyle = building.color;
-                        this.ctx.fillRect(building.x, building.y, building.width, building.height);
-                    }
-                });
-
-                // Dessiner les herbes hautes
-                this.wildGrass.forEach(grass => {
-                    this.ctx.fillStyle = grass.color;
-                    this.ctx.fillRect(grass.x, grass.y, grass.width, grass.height);
-                    // Motif d'herbe
-                    this.ctx.fillStyle = '#229954';
-                    for (let i = 0; i < 5; i++) {
-                        this.ctx.fillRect(grass.x + i * 12 + 5, grass.y + 10, 3, 20);
-                        this.ctx.fillRect(grass.x + i * 12 + 5, grass.y + 35, 3, 15);
-                    }
-                });
-
-                // Dessiner les bâtiments
-                this.buildings.forEach(building => {
-                    if (building.type !== 'road') {
-                        this.ctx.fillStyle = building.color;
-                        this.ctx.fillRect(building.x, building.y, building.width, building.height);
-                        // Toit
-                        this.ctx.fillStyle = '#34495e';
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(building.x - 10, building.y);
-                        this.ctx.lineTo(building.x + building.width / 2, building.y - 20);
-                        this.ctx.lineTo(building.x + building.width + 10, building.y);
-                        this.ctx.fill();
-                        // Texte
-                        this.ctx.fillStyle = 'white';
-                        this.ctx.font = '12px Arial';
-                        this.ctx.textAlign = 'center';
-                        this.ctx.fillText(building.name, building.x + building.width / 2, building.y + building.height / 2);
-                    }
-                });
-
-                // Dessiner les NPCs
-                this.npcs.forEach(npc => {
-                    this.ctx.fillStyle = npc.color;
-                    this.ctx.beginPath();
-                    this.ctx.arc(npc.x, npc.y, npc.size, 0, Math.PI * 2);
-                    this.ctx.fill();
-                    this.ctx.fillStyle = 'white';
-                    this.ctx.font = '10px Arial';
-                    this.ctx.textAlign = 'center';
-                    this.ctx.fillText(npc.name, npc.x, npc.y + npc.size + 15);
-                });
-
-                // Dessiner le joueur
-                this.ctx.fillStyle = this.player.color;
-                this.ctx.beginPath();
-                this.ctx.arc(this.player.x, this.player.y, this.player.size, 0, Math.PI * 2);
-                this.ctx.fill();
-                // Yeux
-                this.ctx.fillStyle = 'white';
-                this.ctx.beginPath();
-                this.ctx.arc(this.player.x - 8, this.player.y - 5, 6, 0, Math.PI * 2);
-                this.ctx.arc(this.player.x + 8, this.player.y - 5, 6, 0, Math.PI * 2);
-                this.ctx.fill();
-                this.ctx.fillStyle = 'black';
-                this.ctx.beginPath();
-                this.ctx.arc(this.player.x - 8, this.player.y - 5, 3, 0, Math.PI * 2);
-                this.ctx.arc(this.player.x + 8, this.player.y - 5, 3, 0, Math.PI * 2);
-                this.ctx.fill();
-            },
-
-            checkInteraction() {
-                // Vérifier interaction avec NPCs
-                this.npcs.forEach(npc => {
-                    const dist = Math.hypot(this.player.x - npc.x, this.player.y - npc.y);
-                    if (dist < 80) {
-                        this.interactWithNPC(npc);
-                    }
-                });
-
-                // Vérifier interaction avec bâtiments
-                this.buildings.forEach(building => {
-                    if (building.type !== 'road') {
-                        const inRange = this.player.x > building.x - 50 &&
-                                      this.player.x < building.x + building.width + 50 &&
-                                      this.player.y > building.y - 50 &&
-                                      this.player.y < building.y + building.height + 50;
-                        if (inRange) {
-                            this.interactWithBuilding(building);
-                        }
-                    }
-                });
-            },
-
-            interactWithNPC(npc) {
-                if (npc.type === 'professor' && !this.player.hasStarter) {
-                    this.showDialogue(
-                        "Professeur Chen: Bonjour jeune dresseur ! Bienvenue dans le monde des Pokémon ! Avant de commencer ton aventure, tu dois choisir ton premier Pokémon. Lequel choisis-tu ?",
-                        () => this.chooseStarter()
-                    );
-                } else if (npc.type === 'professor' && this.player.hasStarter) {
-                    this.showDialogue("Professeur Chen: Comment se passe ton aventure ? Continue d'explorer et de capturer des Pokémon !");
-                }
-            },
-
-            interactWithBuilding(building) {
-                if (building.type === 'pokecenter') {
-                    this.showDialogue("Infirmière Joy: Bienvenue au Centre Pokémon ! Vos Pokémon ont été soignés !", () => {
-                        this.player.team.forEach(p => {
-                            p.currentHp = p.maxHp;
-                        });
-                        this.updateTeamDisplay();
-                    });
-                } else if (building.type === 'shop') {
-                    this.showDialogue("Vendeur: Bienvenue à la Boutique Pokémon !", () => {
-                        this.showShop();
-                    });
-                }
-            },
-
-            showShop() {
-                const choicesDiv = document.getElementById('dialogue-choices');
-                choicesDiv.innerHTML = `
-                    <button class="choice-btn" onclick="game.buyPokeballs(5)">Acheter 5 Pokéballs (Gratuit pour le jeu)</button>
-                    <button class="choice-btn" onclick="game.closeDialogue()">Partir</button>
-                `;
-                document.getElementById('dialogue-continue').style.display = 'none';
-            },
-
-            buyPokeballs(amount) {
-                this.player.pokeballs += amount;
-                document.getElementById('pokeball-count').textContent = this.player.pokeballs;
-                this.showDialogue(`Vous avez reçu ${amount} Pokéballs !`);
-            },
-
-            chooseStarter() {
-                const choicesDiv = document.getElementById('dialogue-choices');
-                choicesDiv.innerHTML = `
-                    <button class="choice-btn" onclick="game.selectStarter('Salameche')">Salamèche (Feu 🔴)</button>
-                    <button class="choice-btn" onclick="game.selectStarter('Carapuce')">Carapuce (Eau 🔵)</button>
-                    <button class="choice-btn" onclick="game.selectStarter('Bulbizarre')">Bulbizarre (Plante 🟢)</button>
-                `;
-                document.getElementById('dialogue-continue').style.display = 'none';
-            },
-
-            selectStarter(name) {
-                const starters = {
-                    'Salameche': { name: 'Salamèche', type: 'Feu', color: '#ff6b4a', attack: 52, maxHp: 39 },
-                    'Carapuce': { name: 'Carapuce', type: 'Eau', color: '#4a9eff', attack: 48, maxHp: 44 },
-                    'Bulbizarre': { name: 'Bulbizarre', type: 'Plante', color: '#4aff6b', attack: 49, maxHp: 45 }
-                };
-
-                const starter = starters[name];
-                starter.currentHp = starter.maxHp;
-                starter.level = 5;
-                this.player.team.push(starter);
-                this.player.hasStarter = true;
-                
-                this.updateTeamDisplay();
-                this.showDialogue(`Félicitations ! Vous avez choisi ${starter.name} ! Bonne chance dans votre aventure !`);
-            },
-
-            checkWildEncounter() {
-                if (this.player.team.length === 0) return;
-
-                this.wildGrass.forEach(grass => {
-                    if (this.player.x > grass.x && this.player.x < grass.x + grass.width &&
-                        this.player.y > grass.y && this.player.y < grass.y + grass.height) {
-                        if (Math.random() < 0.01) {
-                            this.startWildBattle();
-                        }
-                    }
-                });
-            },
-
-            startWildBattle() {
-                const wildPokemon = this.generateWildPokemon();
-                const playerPokemon = this.player.team[0];
-
-                this.battle = {
-                    wild: wildPokemon,
-                    player: playerPokemon,
-                    turn: 'player',
-                    log: []
-                };
-
-                this.showBattle();
-            },
-
-            generateWildPokemon() {
-                const wildTypes = [
-                    { name: 'Rattata', type: 'Normal', color: '#a8a878', attack: 30, maxHp: 30, level: 3 },
-                    { name: 'Pikachu', type: 'Électrik', color: '#f8d030', attack: 35, maxHp: 35, level: 4 },
-                    { name: 'Roucool', type: 'Vol', color: '#a890f0', attack: 32, maxHp: 40, level: 3 },
-                    { name: 'Chenipan', type: 'Insecte', color: '#a8b820', attack: 25, maxHp: 45, level: 3 },
-                    { name: 'Aspicot', type: 'Insecte', color: '#a8b820', attack: 28, maxHp: 40, level: 3 }
-                ];
-
-                const pokemon = wildTypes[Math.floor(Math.random() * wildTypes.length)];
-                pokemon.currentHp = pokemon.maxHp;
-                return pokemon;
-            },
-
-            showBattle() {
-                document.getElementById('battle').classList.add('active');
-                this.updateBattleDisplay();
-                this.addBattleLog(`Un ${this.battle.wild.name} sauvage apparaît !`);
-            },
-
-            updateBattleDisplay() {
-                const wild = this.battle.wild;
-                const player = this.battle.player;
-
-                document.getElementById('wild-pokemon-shape').style.backgroundColor = wild.color;
-                document.getElementById('wild-pokemon-name').textContent = `${wild.name} (Niv.${wild.level})`;
-                document.getElementById('wild-pokemon-hp-text').textContent = `PV: ${Math.max(0, wild.currentHp)}/${wild.maxHp}`;
-                
-                const wildHpPercent = (wild.currentHp / wild.maxHp) * 100;
-                const wildHpBar = document.getElementById('wild-hp');
-                wildHpBar.style.width = wildHpPercent + '%';
-                wildHpBar.className = 'hp-fill' + (wildHpPercent < 30 ? ' low' : '');
-
-                document.getElementById('player-pokemon-shape').style.backgroundColor = player.color;
-                document.getElementById('player-pokemon-name').textContent = `${player.name} (Niv.${player.level})`;
-                document.getElementById('player-pokemon-hp-text').textContent = `PV: ${Math.max(0, player.currentHp)}/${player.maxHp}`;
-                
-                const playerHpPercent = (player.currentHp / player.maxHp) * 100;
-                const playerHpBar = document.getElementById('player-hp');
-                playerHpBar.style.width = playerHpPercent + '%';
-                playerHpBar.className = 'hp-fill' + (playerHpPercent < 30 ? ' low' : '');
-            },
-
-            addBattleLog(message) {
-                const log = document.getElementById('battle-log');
-                const entry = document.createElement('div');
-                entry.className = 'log-entry';
-                entry.textContent = message;
-                log.appendChild(entry);
-                log.scrollTop = log.scrollHeight;
-            },
-
-            battle: {
-                attack() {
-                    if (!game.battle) return;
-
-                    const playerDamage = Math.floor(Math.random() * 20) + game.battle.player.attack;
-                    game.battle.wild.currentHp -= playerDamage;
-                    game.addBattleLog(`${game.battle.player.name} attaque et inflige ${playerDamage} dégâts !`);
-
-                    if (game.battle.wild.currentHp <= 0) {
-                        game.addBattleLog(`${game.battle.wild.name} est K.O. ! Victoire !`);
-                        game.battle.player.level++;
-                        game.addBattleLog(`${game.battle.player.name} monte au niveau ${game.battle.player.level} !`);
-                        setTimeout(() => game.endBattle(), 2000);
-                        return;
-                    }
-
-                    game.updateBattleDisplay();
-
-                    setTimeout(() => {
-                        const wildDamage = Math.floor(Math.random() * 15) + game.battle.wild.attack;
-                        game.battle.player.currentHp -= wildDamage;
-                        game.addBattleLog(`${game.battle.wild.name} attaque et inflige ${wildDamage} dégâts !`);
-
-                        if (game.battle.player.currentHp <= 0) {
-                            game.addBattleLog(`${game.battle.player.name} est K.O. ! Vous avez perdu...`);
-                            game.battle.player.currentHp = 1;
-                            setTimeout(() => game.endBattle(), 2000);
-                            return;
-                        }
-
-                        game.updateBattleDisplay();
-                    }, 1000);
-                },
-
-                capture() {
-                    if (!game.battle) return;
-                    
-                    if (game.player.pokeballs <= 0) {
-                        game.addBattleLog("Vous n'avez plus de Pokéballs !");
-                        return;
-                    }
-
-                    game.player.pokeballs--;
-                    document.getElementById('pokeball-count').textContent = game.player.pokeballs;
-
-                    const captureRate = (1 - game.battle.wild.currentHp / game.battle.wild.maxHp) * 0.6 + 0.2;
-                    const captured = Math.random() < captureRate;
-
-                    game.addBattleLog(`Vous lancez une Pokéball...`);
-
-                    setTimeout(() => {
-                        if (captured) {
-                            game.addBattleLog(`Gotcha ! ${game.battle.wild.name} a été capturé !`);
-                            game.battle.wild.currentHp = game.battle.wild.maxHp;
-                            game.player.team.push({...game.battle.wild});
-                            game.updateTeamDisplay();
-                            setTimeout(() => game.endBattle(), 2000);
-                        } else {
-                            game.addBattleLog(`Oh non ! ${game.battle.wild.name} s'est échappé !`);
-                        }
-                    }, 1500);
-                },
-
-                flee() {
-                    if (!game.battle) return;
-                    game.addBattleLog("Vous prenez la fuite !");
-                    setTimeout(() => game.endBattle(), 1000);
-                }
-            },
-
-            endBattle() {
-                document.getElementById('battle').classList.remove('active');
-                document.getElementById('battle-log').innerHTML = '';
-                this.battle = null;
-                this.updateTeamDisplay();
-            },
-
-            updateTeamDisplay() {
-                const teamList = document.getElementById('team-list');
-                teamList.innerHTML = '';
-                this.player.team.forEach(pokemon => {
-                    const div = document.createElement('div');
-                    div.className = 'team-pokemon';
-                    div.innerHTML = `
-                        <div class="team-pokemon-shape" style="background-color: ${pokemon.color}"></div>
-                        <span>${pokemon.name} Niv.${pokemon.level} (${pokemon.currentHp}/${pokemon.maxHp} PV)</span>
-                    `;
-                    teamList.appendChild(div);
-                });
-            },
-
-            showDialogue(text, callback = null) {
-                this.dialogue.active = true;
-                this.dialogue.callback = callback;
-                document.getElementById('dialogue-text').textContent = text;
-                document.getElementById('dialogue').classList.add('active');
-                document.getElementById('dialogue-choices').innerHTML = '';
-                document.getElementById('dialogue-continue').style.display = 'block';
-            },
-
-            closeDialogue() {
-                this.dialogue.active = false;
-                document.getElementById('dialogue').classList.remove('active');
-                if (this.dialogue.callback) {
-                    const cb = this.dialogue.callback;
-                    this.dialogue.callback = null;
-                    cb();
-                }
-            },
-
-            gameLoop() {
-                this.update();
-                this.draw();
-                requestAnimationFrame(() => this.gameLoop());
-            }
+        // ===== ÉTAT DU JEU =====
+        const gameState = {
+            playerName: 'Red',
+            money: 500,
+            inventory: [
+                { id: 'potion', name: 'Potion', icon: '🧪', quantity: 5 },
+                { id: 'pokeball', name: 'Pokéball', icon: '⚾', quantity: 10 },
+                { id: 'antidote', name: 'Antidote', icon: '💊', quantity: 3 }
+            ],
+            team: [
+                { id: 1, name: 'Flammy', sprite: '🔥', level: 5, hp: 45, maxHp: 45, attack: 15, defense: 10 }
+            ],
+            badges: 0
         };
 
-        // Démarrage du jeu
-        window.addEventListener('load', () => {
-            game.init();
-        });
+        let currentBattle = null;
+        let player, cursors, spaceKey, escKey;
+        let npcs = [];
+        let isDialogActive = false;
+        let canInteract = false;
+        let nearestNPC = null;
+        let currentDialog = null;
+        let isMenuOpen = false;
+
+        // ===== CONFIGURATION PHASER =====
+        const config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            parent: 'game-container',
+            physics: {
+                default: 'arcade',
+                arcade: { gravity: { y: 0 }, debug: false }
+            },
+            scene: { preload, create, update }
+        };
+
+        const game = new Phaser.Game(config);
+
+        // ===== PRÉCHARGEMENT =====
+        function preload() {
+            // PERSONNAGE : 272×288 pixels (4 colonnes × 4 rangées)
+            // Chaque frame = 68×72 pixels
+            this.load.spritesheet('player', 'assets/player.png', {
+                frameWidth: 68,   // 272 ÷ 4 = 68
+                frameHeight: 72   // 288 ÷ 4 = 72
+            });
+            
+            // ASSETS : 2048×2048 pixels (tuiles et NPCs)
+            this.load.image('grass', 'assets/grass.png');
+            this.load.image('path', 'assets/path.png');
+            this.load.image('water', 'assets/water.png');
+            this.load.image('tree', 'assets/tree.png');
+            
+            // NPCs - aussi 2048×2048
+            this.load.image('npc1', 'assets/npc1.png');
+            this.load.image('npc2', 'assets/npc2.png');
+            this.load.image('npc3', 'assets/npc3.png');
+        }
+
+        // ===== CRÉATION =====
+        function create() {
+            // Créer la carte (tuiles de 2048px, donc moins de tuiles)
+            createMap(this);
+            
+            // Créer le joueur (taille ajustée pour 68×72)
+            player = this.physics.add.sprite(400, 300, 'player', 0);
+            player.setCollideWorldBounds(true);
+            
+            // Ajuster la taille de collision du joueur
+            player.setSize(60, 60);
+            player.setOffset(4, 12);
+            
+            // Animations (16 frames au total, 4×4)
+            this.anims.create({
+                key: 'walk-down',
+                frames: this.anims.generateFrameNumbers('player', { start: 0, end: 3 }),
+                frameRate: 8,
+                repeat: -1
+            });
+            this.anims.create({
+                key: 'walk-left',
+                frames: this.anims.generateFrameNumbers('player', { start: 4, end: 7 }),
+                frameRate: 8,
+                repeat: -1
+            });
+            this.anims.create({
+                key: 'walk-right',
+                frames: this.anims.generateFrameNumbers('player', { start: 8, end: 11 }),
+                frameRate: 8,
+                repeat: -1
+            });
+            this.anims.create({
+                key: 'walk-up',
+                frames: this.anims.generateFrameNumbers('player', { start: 12, end: 15 }),
+                frameRate: 8,
+                repeat: -1
+            });
+            
+            // Créer NPCs
+            createNPCs(this);
+            
+            // Créer zones de combat
+            createBattleZones(this);
+            
+            // Contrôles
+            cursors = this.input.keyboard.createCursorKeys();
+            spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+            escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+            
+            // Caméra
+            this.cameras.main.startFollow(player);
+            this.cameras.main.setBounds(0, 0, 10240, 7680); // Carte ajustée
+        }
+
+        function createMap(scene) {
+            // Carte avec tuiles de 2048×2048 (beaucoup moins de tuiles)
+            // 5 tuiles en largeur × 4 tuiles en hauteur = 10240×8192
+            
+            // Herbe partout (5×4 tuiles)
+            for (let y = 0; y < 4; y++) {
+                for (let x = 0; x < 5; x++) {
+                    const tile = scene.add.image(x * 2048, y * 2048, 'grass').setOrigin(0);
+                    tile.setDisplaySize(2048, 2048);
+                }
+            }
+            
+            // Chemin central (1 tuile de large)
+            for (let y = 0; y < 4; y++) {
+                const tile = scene.add.image(2 * 2048, y * 2048, 'path').setOrigin(0);
+                tile.setDisplaySize(2048, 2048);
+            }
+            
+            // Lac (1 tuile)
+            const water = scene.add.image(0, 2048, 'water').setOrigin(0);
+            water.setDisplaySize(2048, 2048);
+            scene.physics.add.existing(water, true);
+            scene.physics.add.collider(player, water);
+            
+            // Arbres (bordures - plus espacés)
+            for (let x = 0; x < 5; x++) {
+                addTree(scene, x * 2048, 0);
+                addTree(scene, x * 2048, 3 * 2048);
+            }
+            for (let y = 1; y < 3; y++) {
+                addTree(scene, 0, y * 2048);
+                addTree(scene, 4 * 2048, y * 2048);
+            }
+        }
+
+        function addTree(scene, x, y) {
+            const tree = scene.add.image(x, y, 'tree').setOrigin(0);
+            tree.setDisplaySize(2048, 2048);
+            scene.physics.add.existing(tree, true);
+            scene.physics.add.collider(player, tree);
+        }
+
+        function createNPCs(scene) {
+            const npcData = [
+                { x: 2500, y: 1500, sprite: 'npc1', dialog: [
+                    "Bonjour ! Bienvenue dans le monde des monstres !",
+                    "Attention aux hautes herbes !"
+                ]},
+                { x: 5000, y: 3000, sprite: 'npc2', dialog: [
+                    "Pour devenir champion, il faut 8 badges !",
+                    "Bonne chance !"
+                ]},
+                { x: 3500, y: 5000, sprite: 'npc3', dialog: [
+                    "J'adore les monstres de type feu ! 🔥"
+                ]}
+            ];
+            
+            npcData.forEach(data => {
+                const npc = scene.physics.add.sprite(data.x, data.y, data.sprite);
+                npc.setDisplaySize(150, 150); // Taille d'affichage du NPC
+                npc.setImmovable(true);
+                npc.dialogs = data.dialog;
+                npc.currentDialogIndex = 0;
+                npcs.push(npc);
+            });
+        }
+
+        function createBattleZones(scene) {
+            const zones = [
+                { x: 1000, y: 1000, w: 3000, h: 2000 },
+                { x: 6000, y: 4000, w: 3000, h: 2000 }
+            ];
+            
+            zones.forEach(z => {
+                const zone = scene.add.rectangle(z.x, z.y, z.w, z.h, 0x27ae60, 0.3).setOrigin(0);
+                scene.physics.add.existing(zone, true);
+                scene.physics.add.overlap(player, zone, () => {
+                    if (!isDialogActive && Math.random() < 0.02) {
+                        startWildBattle();
+                    }
+                });
+            });
+        }
+
+        // ===== BOUCLE DE JEU =====
+        function update() {
+            if (isDialogActive || isMenuOpen) {
+                player.setVelocity(0);
+                return;
+            }
+            
+            const speed = 160;
+            player.setVelocity(0);
+            
+            if (cursors.left.isDown) {
+                player.setVelocityX(-speed);
+                player.anims.play('walk-left', true);
+            } else if (cursors.right.isDown) {
+                player.setVelocityX(speed);
+                player.anims.play('walk-right', true);
+            } else if (cursors.up.isDown) {
+                player.setVelocityY(-speed);
+                player.anims.play('walk-up', true);
+            } else if (cursors.down.isDown) {
+                player.setVelocityY(speed);
+                player.anims.play('walk-down', true);
+            } else {
+                player.anims.stop();
+            }
+            
+            checkNPCProximity();
+            
+            if (Phaser.Input.Keyboard.JustDown(spaceKey)) {
+                if (canInteract && nearestNPC) {
+                    showDialog(nearestNPC);
+                } else if (isDialogActive) {
+                    nextDialog();
+                }
+            }
+            
+            if (Phaser.Input.Keyboard.JustDown(escKey)) {
+                toggleMainMenu();
+            }
+        }
+
+        function checkNPCProximity() {
+            let closest = null;
+            let minDist = 200; // Distance augmentée pour les grosses tuiles
+            
+            npcs.forEach(npc => {
+                const dist = Phaser.Math.Distance.Between(player.x, player.y, npc.x, npc.y);
+                if (dist < minDist) {
+                    closest = npc;
+                    minDist = dist;
+                }
+            });
+            
+            if (closest && !isDialogActive) {
+                canInteract = true;
+                nearestNPC = closest;
+                document.getElementById('interact-prompt').classList.add('active');
+            } else {
+                canInteract = false;
+                nearestNPC = null;
+                document.getElementById('interact-prompt').classList.remove('active');
+            }
+        }
+
+        // ===== DIALOGUES =====
+        function showDialog(npc) {
+            isDialogActive = true;
+            currentDialog = npc;
+            npc.currentDialogIndex = 0;
+            
+            document.getElementById('dialog-box').classList.add('active');
+            document.getElementById('dialog-text').textContent = npc.dialogs[0];
+            document.getElementById('interact-prompt').classList.remove('active');
+        }
+
+        function nextDialog() {
+            if (!currentDialog) return;
+            
+            currentDialog.currentDialogIndex++;
+            
+            if (currentDialog.currentDialogIndex >= currentDialog.dialogs.length) {
+                closeDialog();
+            } else {
+                document.getElementById('dialog-text').textContent = 
+                    currentDialog.dialogs[currentDialog.currentDialogIndex];
+            }
+        }
+
+        function closeDialog() {
+            isDialogActive = false;
+            currentDialog = null;
+            document.getElementById('dialog-box').classList.remove('active');
+        }
+
+        // ===== COMBATS =====
+        function startWildBattle() {
+            const wildMonsters = [
+                { name: 'Draco', sprite: '🐉', level: 5, hp: 35, attack: 12, defense: 8 },
+                { name: 'Leafy', sprite: '🍃', level: 4, hp: 40, attack: 10, defense: 12 },
+                { name: 'Sparky', sprite: '⚡', level: 6, hp: 30, attack: 15, defense: 7 }
+            ];
+            
+            const enemy = {...wildMonsters[Math.floor(Math.random() * wildMonsters.length)]};
+            enemy.maxHp = enemy.hp;
+            
+            currentBattle = {
+                enemy: enemy,
+                playerMonster: {...gameState.team[0]},
+                turn: 'player'
+            };
+            
+            document.getElementById('battle-screen').classList.add('active');
+            document.getElementById('enemy-name').textContent = enemy.name;
+            document.getElementById('enemy-level').textContent = `Niv. ${enemy.level}`;
+            document.getElementById('enemy-sprite').textContent = enemy.sprite;
+            document.getElementById('enemy-hp').style.width = '100%';
+            
+            document.getElementById('player-monster-name').textContent = currentBattle.playerMonster.name;
+            document.getElementById('player-monster-level').textContent = `Niv. ${currentBattle.playerMonster.level}`;
+            document.getElementById('player-monster-sprite').textContent = currentBattle.playerMonster.sprite;
+            document.getElementById('player-monster-hp').style.width = '100%';
+            
+            showBattleMessage(`Un ${enemy.name} sauvage apparaît !`);
+        }
+
+        function battleAction(action) {
+            if (!currentBattle || currentBattle.turn !== 'player') return;
+            
+            const { enemy, playerMonster } = currentBattle;
+            
+            switch(action) {
+                case 'attack':
+                    const damage = Math.max(1, playerMonster.attack - enemy.defense + Math.floor(Math.random() * 5));
+                    enemy.hp = Math.max(0, enemy.hp - damage);
+                    showBattleMessage(`${playerMonster.name} attaque ! ${damage} dégâts !`);
+                    updateBattleHP();
+                    
+                    setTimeout(() => {
+                        if (enemy.hp <= 0) {
+                            winBattle();
+                        } else {
+                            enemyTurn();
+                        }
+                    }, 1500);
+                    break;
+                    
+                case 'item':
+                    const potion = gameState.inventory.find(i => i.id === 'potion');
+                    if (potion && potion.quantity > 0 && playerMonster.hp < playerMonster.maxHp) {
+                        playerMonster.hp = Math.min(playerMonster.maxHp, playerMonster.hp + 20);
+                        potion.quantity--;
+                        showBattleMessage(`${playerMonster.name} récupère 20 HP !`);
+                        updateBattleHP();
+                        setTimeout(enemyTurn, 1500);
+                    } else {
+                        showBattleMessage('Pas de potion disponible !');
+                    }
+                    break;
+                    
+                case 'capture':
+                    const pokeball = gameState.inventory.find(i => i.id === 'pokeball');
+                    if (pokeball && pokeball.quantity > 0) {
+                        pokeball.quantity--;
+                        const catchRate = (1 - enemy.hp / enemy.maxHp) * 0.5;
+                        if (Math.random() < catchRate) {
+                            showBattleMessage(`${enemy.name} a été capturé !`);
+                            gameState.team.push({
+                                id: Date.now(),
+                                name: enemy.name,
+                                sprite: enemy.sprite,
+                                level: enemy.level,
+                                hp: enemy.maxHp,
+                                maxHp: enemy.maxHp,
+                                attack: enemy.attack,
+                                defense: enemy.defense
+                            });
+                            setTimeout(endBattle, 2000);
+                        } else {
+                            showBattleMessage(`${enemy.name} s'est échappé !`);
+                            setTimeout(enemyTurn, 1500);
+                        }
+                    } else {
+                        showBattleMessage('Pas de Pokéball !');
+                    }
+                    break;
+                    
+                case 'run':
+                    if (Math.random() < 0.5) {
+                        showBattleMessage('Vous avez réussi à fuir !');
+                        setTimeout(endBattle, 1500);
+                    } else {
+                        showBattleMessage('Impossible de fuir !');
+                        setTimeout(enemyTurn, 1500);
+                    }
+                    break;
+            }
+            
+            currentBattle.turn = 'enemy';
+        }
+
+        function enemyTurn() {
+            const { enemy, playerMonster } = currentBattle;
+            const damage = Math.max(1, enemy.attack - playerMonster.defense + Math.floor(Math.random() * 5));
+            playerMonster.hp = Math.max(0, playerMonster.hp - damage);
+            
+            showBattleMessage(`${enemy.name} attaque ! ${damage} dégâts !`);
+            updateBattleHP();
+            
+            setTimeout(() => {
+                if (playerMonster.hp <= 0) {
+                    loseBattle();
+                } else {
+                    currentBattle.turn = 'player';
+                    showBattleMessage('Que faire ?');
+                }
+            }, 1500);
+        }
+
+        function updateBattleHP() {
+            const { enemy, playerMonster } = currentBattle;
+            const enemyPercent = (enemy.hp / enemy.maxHp) * 100;
+            const playerPercent = (playerMonster.hp / playerMonster.maxHp) * 100;
+            
+            document.getElementById('enemy-hp').style.width = enemyPercent + '%';
+            document.getElementById('player-monster-hp').style.width = playerPercent + '%';
+        }
+
+        function showBattleMessage(msg) {
+            document.getElementById('battle-message').textContent = msg;
+        }
+
+        function winBattle() {
+            const moneyGained = currentBattle.enemy.level * 15;
+            gameState.money += moneyGained;
+            showBattleMessage(`Victoire ! Vous gagnez ${moneyGained} ₽ !`);
+            setTimeout(endBattle, 2000);
+        }
+
+        function loseBattle() {
+            showBattleMessage('Défaite... Vous retournez au centre.');
+            gameState.team.forEach(m => m.hp = m.maxHp);
+            setTimeout(endBattle, 2000);
+        }
+
+        function endBattle() {
+            currentBattle = null;
+            document.getElementById('battle-screen').classList.remove('active');
+        }
+
+        // ===== INTERFACE =====
+        function toggleMainMenu() {
+            isMenuOpen = !isMenuOpen;
+            const menu = document.getElementById('main-menu');
+            menu.classList.toggle('active', isMenuOpen);
+        }
+
+        function closeMenu() {
+            isMenuOpen = false;
+            document.getElementById('main-menu').classList.remove('active');
+        }
+
+        function toggleInventory() {
+            const inv = document.getElementById('inventory-screen');
+            if (!inv.classList.contains('active')) {
+                updateInventoryDisplay();
+                inv.classList.add('active');
+            } else {
+                inv.classList.remove('active');
+            }
+        }
+
+        function updateInventoryDisplay() {
+            const grid = document.getElementById('inventory-grid');
+            grid.innerHTML = '';
+            document.getElementById('money-display').textContent = gameState.money;
+            
+            gameState.inventory.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'inventory-item';
+                div.innerHTML = `
+                    <div class="item-icon">${item.icon}</div>
+                    <div><strong>${item.name}</strong></div>
+                    <div style="font-size: 10px; margin-top: 5px;">x${item.quantity}</div>
+                `;
+                grid.appendChild(div);
+            });
+        }
+
+        function toggleTeam() {
+            const team = document.getElementById('team-screen');
+            if (!team.classList.contains('active')) {
+                updateTeamDisplay();
+                team.classList.add('active');
+            } else {
+                team.classList.remove('active');
+            }
+        }
+
+        function updateTeamDisplay() {
+            const list = document.getElementById('team-list');
+            list.innerHTML = '';
+            
+            gameState.team.forEach(monster => {
+                const div = document.createElement('div');
+                div.className = 'team-monster';
+                const hpPercent = (monster.hp / monster.maxHp) * 100;
+                
+                div.innerHTML = `
+                    <div class="team-monster-sprite">${monster.sprite}</div>
+                    <div class="team-monster-info">
+                        <div><strong>${monster.name}</strong> - Niv. ${monster.level}</div>
+                        <div class="hp-bar" style="margin-top: 5px;">
+                            <div class="hp-fill" style="width: ${hpPercent}%"></div>
+                        </div>
+                        <div style="margin-top: 5px; font-size: 10px;">
+                            HP: ${monster.hp}/${monster.maxHp} | ATK: ${monster.attack} | DEF: ${monster.defense}
+                        </div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
     </script>
 </body>
 </html>
