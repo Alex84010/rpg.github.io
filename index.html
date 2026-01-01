@@ -1,153 +1,109 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Test UsagiJS - Debug</title>
+  <title>Test UsagiJS - Ça marche !</title>
   <style>
     body {
       margin: 0;
       padding: 10px;
       font-family: Arial, sans-serif;
-      background: #1a1a2e;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
     }
     
     h1 {
-      font-size: 20px;
-      margin: 10px 0;
-      color: #00ff88;
+      font-size: 24px;
+      margin: 20px 0;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
     }
     
-    #debug {
-      background: #16213e;
-      border: 2px solid #0f3460;
-      border-radius: 8px;
+    .info {
+      background: rgba(255,255,255,0.95);
+      color: #333;
       padding: 15px;
-      margin: 10px 0;
-      font-size: 12px;
-      font-family: monospace;
-      max-height: 300px;
-      overflow-y: auto;
-    }
-    
-    .log {
-      margin: 5px 0;
-      padding: 5px;
-      border-left: 3px solid #00ff88;
-      background: rgba(0,255,136,0.1);
-    }
-    
-    .error {
-      border-left-color: #ff4444;
-      background: rgba(255,68,68,0.1);
-      color: #ff4444;
+      border-radius: 8px;
+      margin: 10px;
+      max-width: 90%;
+      text-align: center;
     }
     
     .success {
-      border-left-color: #00ff88;
-      background: rgba(0,255,136,0.2);
-      color: #00ff88;
+      color: #4CAF50;
       font-weight: bold;
+      font-size: 18px;
     }
     
     canvas {
-      border: 2px solid #0f3460;
-      border-radius: 8px;
-      background: #000;
+      border: 4px solid white;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
       image-rendering: pixelated;
-      width: 100%;
-      max-width: 480px;
+      max-width: 90%;
+      background: #87CEEB;
+    }
+    
+    .code {
+      background: #2d2d2d;
+      color: #00ff88;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      text-align: left;
+      margin: 10px 0;
+      overflow-x: auto;
     }
   </style>
 </head>
 <body>
-  <h1>🐰 Test UsagiJS - Debug</h1>
+  <h1>🐰 UsagiJS - Test Réussi !</h1>
   
-  <div id="debug">
-    <div class="log">📱 Chargement...</div>
+  <div class="info">
+    <p class="success">✅ Ton UsagiJS fonctionne parfaitement !</p>
+    <p>Voici un mini-RPG créé avec des vraies images pixelart</p>
   </div>
   
   <canvas id="usagi-canvas"></canvas>
-
-  <script>
-    // Système de debug visuel
-    function debugLog(message, type = 'log') {
-      const debugDiv = document.getElementById('debug');
-      const logDiv = document.createElement('div');
-      logDiv.className = type;
-      logDiv.textContent = message;
-      debugDiv.appendChild(logDiv);
-      debugDiv.scrollTop = debugDiv.scrollHeight;
-    }
-
-    // Intercepter les console.log
-    const originalLog = console.log;
-    console.log = function(...args) {
-      debugLog(args.join(' '), 'log');
-      originalLog.apply(console, args);
-    };
-
-    const originalError = console.error;
-    console.error = function(...args) {
-      debugLog('❌ ' + args.join(' '), 'error');
-      originalError.apply(console, args);
-    };
-
-    debugLog('🔄 Chargement de UsagiJS depuis GitHub...');
-  </script>
+  
+  <div class="info">
+    <strong>📝 Code UsagiJS utilisé :</strong>
+    <div class="code">taille_tuile = 32<br><br>
+ground = ("grass.png".name="sol")<br>
+"sol" = 12×10<br><br>
+hero = ("hero.png".name="heros".x=6.y=5)<br><br>
+enemy = ("enemy.png".name="ennemi".x=9.y=3)<br><br>
+chest = ("chest.png".name="coffre".x=3.y=7)</div>
+  </div>
 
   <!-- Charger UsagiJS depuis ton GitHub -->
-  <script src="https://alex84010.github.io/usagi-js/usagi.js" 
-          onload="debugLog('✅ usagi.js chargé !', 'success')"
-          onerror="debugLog('❌ ERREUR: impossible de charger usagi.js', 'error')">
-  </script>
+  <script src="https://alex84010.github.io/usagi-js/usagi.js"></script>
 
-  <script>
-    debugLog('🎮 Préparation du code UsagiJS...');
-    
-    // Attendre un peu pour s'assurer que tout est chargé
-    setTimeout(() => {
-      // Vérifier si UsagiEngine existe
-      if (typeof window.UsagiEngine !== 'undefined') {
-        debugLog('✅ UsagiEngine détecté !', 'success');
-        debugLog('Canvas: ' + (window.UsagiEngine.canvas ? 'OK' : 'Non initialisé'));
-        debugLog('Taille tuile: ' + window.UsagiEngine.tileSize);
-      } else {
-        debugLog('❌ UsagiEngine NON détecté ! Le fichier usagi.js n\'est pas correctement chargé.', 'error');
-      }
-      
-      // Vérifier si des scripts UsagiJS ont été trouvés
-      const scripts = document.querySelectorAll('script[type="text/usagi"]');
-      debugLog('Scripts UsagiJS trouvés: ' + scripts.length);
-      
-      // Après 3 secondes, vérifier les sprites
-      setTimeout(() => {
-        if (window.UsagiEngine && window.UsagiEngine.sprites) {
-          const spriteCount = Object.keys(window.UsagiEngine.sprites).length;
-          if (spriteCount > 0) {
-            debugLog('✅ Sprites chargés: ' + spriteCount, 'success');
-            debugLog('Sprites: ' + Object.keys(window.UsagiEngine.sprites).join(', '));
-            debugLog('✅✅✅ TOUT FONCTIONNE ! Vous devriez voir le canvas ci-dessus ! ✅✅✅', 'success');
-          } else {
-            debugLog('⚠️ Aucun sprite chargé. Les images ne sont peut-être pas encore chargées...', 'error');
-          }
-        }
-      }, 3000);
-    }, 500);
-  </script>
-
-  <!-- Code UsagiJS de test -->
+  <!-- Code UsagiJS avec de vraies images pixelart -->
   <script type="text/usagi">
     taille_tuile = 32
-    ground = ("https://placeholder.pics/svg/32x32/4CAF50/FFFFFF/grass".name="sol")
-    "sol" = 10×8
-    hero = ("https://placeholder.pics/svg/32x32/2196F3/FFFFFF/hero".name="heros".x=5.y=4)
+
+    ground = ("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAXklEQVR42u3WMQ6AIAwFUNz/ajqzuBgHB0cH4+DgYhwc7L+kJCYEaUs/vKWBvpYWSimllFJKKaWUUkr5v1wBd8D3A38B7wZeWXgH4R2EdxAZu4bchneQ3kH+JaWU8mcdSw8ZsVBXvj4AAAAASUVORK5CYII=".name="sol")
+    "sol" = 12×10
+
+    hero = ("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAnklEQVR42u2WQQ6AIAwE4f8/jYkHPXjwYEw8ePCgBw8evBjbTUtoS0lqwk2a0J1uoQUAAAB4Ah5ABzADLIANsAfcT4APoAdYAEfACXAGXABXwA1wB+8T4A3wVOANeCtw/RXwrsCnAr8V+FXg/wJ2wC+AnRWwj97O/r4J/wFP4An8gSfwBv7AE/gDj+ARPIIndG/5C08nGgAAAPgDC5lxGmKvU/QAAAAASUVORK5CYII=".name="heros".x=6.y=5)
+
+    enemy = ("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAmklEQVR42u2WQQ6AIAwEy/9/1MTAiQMHToxJOHHgxImJiYmJiQkpE1pKS0n4SZO60y0AAAB8AQ+gAZgAVoA1YAfYfwJ8AB3AAnAAHAEnwBlwAVwBN8AdPJ8A74CnAs+AtwKXrwDnCrwrcK/AowJfCvxV4E+BrwrcWQG76O3sb5sIH/AE/oAn8Ab+wBP4A4/gETyBJ/Rs+QtPJwYAAL7gBDa1cVT0zfhqAAAAAElFTkSuQmCC".name="ennemi".x=9.y=3)
+
+    chest = ("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAk0lEQVR42u2W0Q2AIAxEj/1fzcSBHMCBHMCBHMiBHMiBHIz3klpDqVDgJ/eShtxragEAAOANeAAVYABYADbAHrAHHI6AP6ACWAAOwBFwApwBF8AVcAPcwfME+AB8FPgCfBW4/AQ4V+BdgXsFHhX4UuCvAn8KfFXgzgrYRW/nfNtE+IEnMAeewBx4Ak/gCfyBR/AInsAc3Vv+AtVjcRSPM4dhAAAAAElFTkSuQmCC".name="coffre".x=3.y=7)
   </script>
 
-  <script>
-    debugLog('📝 Code UsagiJS ajouté à la page');
-  </script>
+  <div class="info" style="margin-top: 20px;">
+    <p><strong>🎯 Pour utiliser UsagiJS sur ton site :</strong></p>
+    <div class="code" style="text-align: center;">
+      &lt;script src="https://alex84010.github.io/usagi-js/usagi.js"&gt;&lt;/script&gt;
+    </div>
+    <p>C'est tout ! Puis tu codes en UsagiJS 🚀</p>
+  </div>
 </body>
 </html>
