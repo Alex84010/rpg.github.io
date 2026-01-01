@@ -1,302 +1,91 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mon Village RPG</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.55.2/phaser.min.js"></script>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background: #1a1a1a;
-        }
-        canvas {
-            border: 3px solid #333;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test UsagiJS - Mini RPG</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    
+    h1 {
+      color: white;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+      margin-bottom: 10px;
+      font-size: 32px;
+    }
+    
+    .subtitle {
+      color: rgba(255,255,255,0.9);
+      margin-bottom: 20px;
+      font-size: 16px;
+    }
+    
+    canvas {
+      border: 4px solid white;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      background: #1a1a2e;
+    }
+    
+    .info {
+      background: rgba(255,255,255,0.95);
+      padding: 15px 25px;
+      border-radius: 8px;
+      margin-top: 20px;
+      max-width: 640px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+    
+    .success {
+      color: #4CAF50;
+      font-weight: bold;
+      font-size: 18px;
+    }
+  </style>
 </head>
 <body>
-    <script>
-        const config = {
-            type: Phaser.AUTO,
-            width: 1024,
-            height: 768,
-            backgroundColor: '#87CEEB',
-            physics: {
-                default: 'arcade',
-                arcade: {
-                    gravity: { y: 0 },
-                    debug: false
-                }
-            },
-            scene: {
-                preload: preload,
-                create: create,
-                update: update
-            }
-        };
+  <h1>🐰 Test UsagiJS</h1>
+  <p class="subtitle">Mini RPG créé avec UsagiJS</p>
+  
+  <canvas id="usagi-canvas"></canvas>
+  
+  <div class="info">
+    <p class="success">✅ Si vous voyez un terrain avec un héros, un ennemi et un coffre, UsagiJS fonctionne parfaitement !</p>
+  </div>
 
-        const game = new Phaser.Game(config);
-        
-        let player;
-        let cursors;
-        let worldObjects;
-        let houses = [];
+  <!-- Charger UsagiJS depuis ton GitHub -->
+  <script src="https://alex84010.github.io/usagi-js/usagi.js"></script>
 
-        function preload() {
-            createAllTextures(this);
-        }
+  <!-- Code UsagiJS de test -->
+  <script type="text/usagi">
+    // Configuration de base
+    taille_tuile = 32
 
-        function create() {
-            const worldWidth = 2500;
-            const worldHeight = 2500;
-            this.physics.world.bounds.width = worldWidth;
-            this.physics.world.bounds.height = worldHeight;
-            
-            // ===== SOL : HERBE =====
-            const ground = this.add.rectangle(worldWidth/2, worldHeight/2, worldWidth, worldHeight, 0x3CB371);
-            
-            // ===== CHEMIN CENTRAL =====
-            // Chemin horizontal
-            this.add.rectangle(worldWidth/2, worldHeight/2, worldWidth, 120, 0xD2B48C);
-            // Chemin vertical
-            this.add.rectangle(worldWidth/2, worldHeight/2, 120, worldHeight, 0xD2B48C);
-            
-            // ===== RIVIÈRE =====
-            const river = this.add.rectangle(worldWidth/2 + 600, worldHeight/2, 180, worldHeight, 0x4169E1);
-            
-            // Groupe d'objets avec collision
-            worldObjects = this.physics.add.staticGroup();
-            
-            // Ajout de l'eau comme obstacle
-            const waterCollision = worldObjects.create(worldWidth/2 + 600, worldHeight/2);
-            waterCollision.body.setSize(180, worldHeight);
-            waterCollision.setVisible(false);
-            
-            // ===== VILLAGE : MAISONS =====
-            // Quartier nord-ouest
-            createHouse(this, worldObjects, 400, 400);
-            createHouse(this, worldObjects, 700, 400);
-            createHouse(this, worldObjects, 400, 700);
-            
-            // Quartier nord-est
-            createHouse(this, worldObjects, 1800, 400);
-            createHouse(this, worldObjects, 2100, 400);
-            createHouse(this, worldObjects, 1800, 700);
-            createHouse(this, worldObjects, 2100, 700);
-            
-            // Quartier sud-ouest
-            createHouse(this, worldObjects, 400, 1800);
-            createHouse(this, worldObjects, 700, 1800);
-            createHouse(this, worldObjects, 400, 2100);
-            createHouse(this, worldObjects, 700, 2100);
-            
-            // Quartier sud-est
-            createHouse(this, worldObjects, 1800, 1800);
-            createHouse(this, worldObjects, 2100, 1800);
-            createHouse(this, worldObjects, 1800, 2100);
-            
-            // ===== ARBRES AUTOUR DU VILLAGE =====
-            // Forêt au nord
-            for (let i = 0; i < 15; i++) {
-                const x = Phaser.Math.Between(200, 2300);
-                const y = Phaser.Math.Between(50, 250);
-                createTree(this, worldObjects, x, y);
-            }
-            
-            // Forêt au sud
-            for (let i = 0; i < 15; i++) {
-                const x = Phaser.Math.Between(200, 2300);
-                const y = Phaser.Math.Between(2250, 2450);
-                createTree(this, worldObjects, x, y);
-            }
-            
-            // Arbres éparpillés
-            createTree(this, worldObjects, 1000, 1000);
-            createTree(this, worldObjects, 1500, 1000);
-            createTree(this, worldObjects, 1000, 1500);
-            createTree(this, worldObjects, 1500, 1500);
-            
-            // ===== BUISSONS =====
-            for (let i = 0; i < 30; i++) {
-                const x = Phaser.Math.Between(100, worldWidth - 100);
-                const y = Phaser.Math.Between(100, worldHeight - 100);
-                // Évite de placer sur les chemins
-                if (Math.abs(x - worldWidth/2) > 150 && Math.abs(y - worldHeight/2) > 150) {
-                    createBush(this, worldObjects, x, y);
-                }
-            }
-            
-            // ===== PLACE DU VILLAGE (centre) =====
-            const plaza = this.add.rectangle(worldWidth/2, worldHeight/2, 300, 300, 0xDAA520);
-            plaza.setDepth(-1);
-            
-            // Fontaine au centre
-            const fountain = this.add.circle(worldWidth/2, worldHeight/2, 40, 0x87CEEB);
-            const fountainBase = worldObjects.create(worldWidth/2, worldHeight/2);
-            fountainBase.body.setCircle(40);
-            fountainBase.setVisible(false);
-            
-            // ===== JOUEUR =====
-            player = this.physics.add.sprite(worldWidth/2, worldHeight/2 + 200, 'player');
-            player.setCollideWorldBounds(true);
-            player.setDepth(10);
-            
-            // ===== COLLISIONS =====
-            this.physics.add.collider(player, worldObjects);
-            
-            // ===== CAMÉRA =====
-            this.cameras.main.startFollow(player, true, 0.1, 0.1);
-            this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
-            this.cameras.main.setZoom(1.2);
-            
-            // ===== CONTRÔLES =====
-            cursors = this.input.keyboard.createCursorKeys();
-            this.keys = {
-                z: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z),
-                q: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q),
-                s: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-                d: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
-            };
-            
-            // ===== TEXTE INFO =====
-            const infoText = this.add.text(16, 16, 'Utilise les flèches ou ZQSD pour te déplacer', {
-                fontSize: '18px',
-                fill: '#fff',
-                backgroundColor: '#000',
-                padding: { x: 10, y: 5 }
-            });
-            infoText.setScrollFactor(0);
-            infoText.setDepth(100);
-        }
+    // Créer le sol en herbe (15 colonnes × 10 lignes)
+    ground = ("https://placeholder.pics/svg/32x32/4CAF50/FFFFFF/grass".name="sol")
+    "sol" = 15×10
 
-        function update() {
-            const speed = 200;
-            
-            player.setVelocity(0);
-            
-            // Déplacements
-            if (cursors.left.isDown || this.keys.q.isDown) {
-                player.setVelocityX(-speed);
-            } else if (cursors.right.isDown || this.keys.d.isDown) {
-                player.setVelocityX(speed);
-            }
-            
-            if (cursors.up.isDown || this.keys.z.isDown) {
-                player.setVelocityY(-speed);
-            } else if (cursors.down.isDown || this.keys.s.isDown) {
-                player.setVelocityY(speed);
-            }
-            
-            // Normalise la vitesse en diagonale
-            if (player.body.velocity.x !== 0 && player.body.velocity.y !== 0) {
-                player.setVelocity(
-                    player.body.velocity.x * 0.707,
-                    player.body.velocity.y * 0.707
-                );
-            }
-            
-            // Gestion de la profondeur (pour passer derrière les objets)
-            updateDepth(player);
-        }
-        
-        // ===== FONCTIONS DE CRÉATION D'OBJETS =====
-        
-        function createHouse(scene, group, x, y) {
-            const container = scene.add.container(x, y);
-            
-            // Murs
-            const walls = scene.add.rectangle(0, 20, 160, 140, 0x8B4513);
-            
-            // Toit
-            const roof = scene.add.triangle(0, -50, -90, 0, 90, 0, 0, -60, 0x8B0000);
-            
-            // Porte
-            const door = scene.add.rectangle(0, 70, 40, 60, 0x654321);
-            
-            // Fenêtres
-            const window1 = scene.add.rectangle(-40, 0, 30, 30, 0xFFFF99);
-            const window2 = scene.add.rectangle(40, 0, 30, 30, 0xFFFF99);
-            
-            container.add([roof, walls, door, window1, window2]);
-            
-            // Collision
-            const collision = group.create(x, y + 30);
-            collision.body.setSize(140, 100);
-            collision.setVisible(false);
-            
-            houses.push(container);
-            return container;
-        }
-        
-        function createTree(scene, group, x, y) {
-            const container = scene.add.container(x, y);
-            
-            // Tronc
-            const trunk = scene.add.rectangle(0, 20, 20, 40, 0x8B4513);
-            
-            // Feuillage (3 cercles pour faire un arbre touffu)
-            const leaves1 = scene.add.circle(-15, -10, 30, 0x228B22);
-            const leaves2 = scene.add.circle(15, -10, 30, 0x228B22);
-            const leaves3 = scene.add.circle(0, -25, 35, 0x006400);
-            
-            container.add([trunk, leaves1, leaves2, leaves3]);
-            
-            // Collision (juste le tronc)
-            const collision = group.create(x, y + 20);
-            collision.body.setSize(20, 30);
-            collision.setVisible(false);
-            
-            return container;
-        }
-        
-        function createBush(scene, group, x, y) {
-            const container = scene.add.container(x, y);
-            
-            // Plusieurs cercles pour faire un buisson
-            const bush1 = scene.add.circle(-10, 0, 20, 0x2F4F2F);
-            const bush2 = scene.add.circle(10, 0, 20, 0x2F4F2F);
-            const bush3 = scene.add.circle(0, -8, 18, 0x3CB371);
-            
-            container.add([bush1, bush2, bush3]);
-            
-            // Collision
-            const collision = group.create(x, y);
-            collision.body.setSize(35, 25);
-            collision.setVisible(false);
-            
-            return container;
-        }
-        
-        function updateDepth(sprite) {
-            // Plus le sprite est bas sur l'écran, plus il est devant
-            sprite.setDepth(sprite.y);
-            
-            // Fait pareil pour les maisons
-            houses.forEach(house => {
-                house.setDepth(house.y);
-            });
-        }
-        
-        // ===== CRÉATION DES TEXTURES =====
-        
-        function createAllTextures(scene) {
-            // Joueur rouge
-            const playerGfx = scene.make.graphics({ x: 0, y: 0, add: false });
-            playerGfx.fillStyle(0xFF0000, 1);
-            playerGfx.fillCircle(16, 24, 12); // Corps
-            playerGfx.fillCircle(16, 12, 8);  // Tête
-            playerGfx.fillStyle(0x000000, 1);
-            playerGfx.fillCircle(13, 10, 2);  // Œil gauche
-            playerGfx.fillCircle(19, 10, 2);  // Œil droit
-            playerGfx.generateTexture('player', 32, 32);
-            playerGfx.destroy();
-        }
-    </script>
+    // Placer le héros au centre
+    hero = ("https://placeholder.pics/svg/32x32/2196F3/FFFFFF/hero".name="heros".x=7.y=5)
+
+    // Placer un ennemi en haut à droite
+    enemy = ("https://placeholder.pics/svg/32x32/F44336/FFFFFF/enemy".name="ennemi".x=12.y=2)
+
+    // Placer un coffre en bas à gauche
+    chest = ("https://placeholder.pics/svg/32x32/FFC107/FFFFFF/chest".name="coffre".x=2.y=7)
+  </script>
 </body>
 </html>
