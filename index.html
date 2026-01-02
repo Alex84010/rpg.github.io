@@ -1,109 +1,219 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Test UsagiJS - Ça marche !</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 10px;
-      font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-    }
-    
-    h1 {
-      font-size: 24px;
-      margin: 20px 0;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    }
-    
-    .info {
-      background: rgba(255,255,255,0.95);
-      color: #333;
-      padding: 15px;
-      border-radius: 8px;
-      margin: 10px;
-      max-width: 90%;
-      text-align: center;
-    }
-    
-    .success {
-      color: #4CAF50;
-      font-weight: bold;
-      font-size: 18px;
-    }
-    
-    canvas {
-      border: 4px solid white;
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-      image-rendering: pixelated;
-      max-width: 90%;
-      background: #87CEEB;
-    }
-    
-    .code {
-      background: #2d2d2d;
-      color: #00ff88;
-      padding: 10px;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 12px;
-      text-align: left;
-      margin: 10px 0;
-      overflow-x: auto;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Usagi RPG Complet</title>
+<script src="https://alex84010.github.io/usagi-js.github.io/usagi.js"></script>
+<style>
+body {margin:0; background:#000; display:flex; justify-content:center; align-items:center; height:100vh; image-rendering:pixelated; font-family:monospace;}
+#game {position: relative;}
+button {font-size:14px;padding:6px 10px;cursor:pointer;}
+</style>
 </head>
 <body>
-  <h1>🐰 UsagiJS - Test Réussi !</h1>
-  
-  <div class="info">
-    <p class="success">✅ Ton UsagiJS fonctionne parfaitement !</p>
-    <p>Voici un mini-RPG créé avec des vraies images pixelart</p>
-  </div>
-  
-  <canvas id="usagi-canvas"></canvas>
-  
-  <div class="info">
-    <strong>📝 Code UsagiJS utilisé :</strong>
-    <div class="code">taille_tuile = 32<br><br>
-ground = ("grass.png".name="sol")<br>
-"sol" = 12×10<br><br>
-hero = ("hero.png".name="heros".x=6.y=5)<br><br>
-enemy = ("enemy.png".name="ennemi".x=9.y=3)<br><br>
-chest = ("chest.png".name="coffre".x=3.y=7)</div>
-  </div>
+<div id="game"></div>
+<script type="text/usagi">
 
-  <!-- Charger UsagiJS depuis ton GitHub -->
-  <script src="https://alex84010.github.io/usagi-js/usagi.js"></script>
+// ==========================
+// ⚙️ CONFIG USAGI
+// ==========================
+Usagi.tileSize = 32;
+Usagi.mount("#game");
 
-  <!-- Code UsagiJS avec de vraies images pixelart -->
-  <script type="text/usagi">
-    taille_tuile = 32
+// ==========================
+// 🖼️ CHARGEMENT DES SPRITES
+// ==========================
+const assets = [
+  "grass","tall_grass","water","wall","floor",
+  "player","npc","npc_nurse",
+  "monstre1_front","monstre1_back","monstre2_front","monstre2_back",
+  "monstre3_front","monstre3_back","monstre4_front","monstre4_back",
+  "pokeball","potion"
+];
 
-    ground = ("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAXklEQVR42u3WMQ6AIAwFUNz/ajqzuBgHB0cH4+DgYhwc7L+kJCYEaUs/vKWBvpYWSimllFJKKaWUUkr5v1wBd8D3A38B7wZeWXgH4R2EdxAZu4bchneQ3kH+JaWU8mcdSw8ZsVBXvj4AAAAASUVORK5CYII=".name="sol")
-    "sol" = 12×10
+for (let a of assets) await Usagi.loadSprite(a,a+".png");
 
-    hero = ("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAnklEQVR42u2WQQ6AIAwE4f8/jYkHPXjwYEw8ePCgBw8evBjbTUtoS0lqwk2a0J1uoQUAAAB4Ah5ABzADLIANsAfcT4APoAdYAEfACXAGXABXwA1wB+8T4A3wVOANeCtw/RXwrsCnAr8V+FXg/wJ2wC+AnRWwj97O/r4J/wFP4An8gSfwBv7AE/gDj+ARPIIndG/5C08nGgAAAPgDC5lxGmKvU/QAAAAASUVORK5CYII=".name="heros".x=6.y=5)
+// ==========================
+// 🗺️ CREATION MAP
+// ==========================
+const map = Usagi.createMap("map1",20,15,"grass");
+// Murs
+Usagi.fillArea("map1",0,0,20,1,"wall",true);
+Usagi.fillArea("map1",0,14,20,1,"wall",true);
+Usagi.fillArea("map1",0,0,1,15,"wall",true);
+Usagi.fillArea("map1",19,0,1,15,"wall",true);
+// Eau
+Usagi.fillArea("map1",2,2,4,3,"water",true);
+// Herbes
+Usagi.fillArea("map1",10,5,5,4,"tall_grass",false);
 
-    enemy = ("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAmklEQVR42u2WQQ6AIAwEy/9/1MTAiQMHToxJOHHgxImJiYmJiQkpE1pKS0n4SZO60y0AAAB8AQ+gAZgAVoA1YAfYfwJ8AB3AAnAAHAEnwBlwAVwBN8AdPJ8A74CnAs+AtwKXrwDnCrwrcK/AowJfCvxV4E+BrwrcWQG76O3sb5sIH/AE/oAn8Ab+wBP4A4/gETyBJ/Rs+QtPJwYAAL7gBDa1cVT0zfhqAAAAAElFTkSuQmCC".name="ennemi".x=9.y=3)
+// ==========================
+// 🧍 JOUEUR
+// ==========================
+Usagi.player.sprite="player";
+Usagi.player.x=3;
+Usagi.player.y=7;
+Usagi.currentMap="map1";
+Usagi.player.team=[]; // vide au début
+Usagi.player.items={"pokeball":3,"potion":2};
+Usagi.player.money=3000;
 
-    chest = ("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAk0lEQVR42u2W0Q2AIAxEj/1fzcSBHMCBHMCBHMiBHMiBHIz3klpDqVDgJ/eShtxragEAAOANeAAVYABYADbAHrAHHI6AP6ACWAAOwBFwApwBF8AVcAPcwfME+AB8FPgCfBW4/AQ4V+BdgXsFHhX4UuCvAn8KfFXgzgrYRW/nfNtE+IEnMAeewBx4Ak/gCfyBR/AInsAc3Vv+AtVjcRSPM4dhAAAAAElFTkSuQmCC".name="coffre".x=3.y=7)
-  </script>
+// ==========================
+// 🐲 MONSTRES ET STATS
+// ==========================
+function createMonster(name,level){
+  const data = {
+    Monstre1:{hp:120,atk:50,def:50,type:"nature"},
+    Monstre2:{hp:100,atk:65,def:40,type:"fire"},
+    Monstre3:{hp:140,atk:45,def:70,type:"rock"},
+    Monstre4:{hp:90,atk:75,def:35,type:"electric"}
+  }[name];
+  return {
+    name,
+    level,
+    hp:data.hp,
+    maxHp:data.hp,
+    atk:data.atk,
+    def:data.def,
+    type:data.type,
+    exp:0,
+    attacks:["Attaque Basique"]
+  };
+}
 
-  <div class="info" style="margin-top: 20px;">
-    <p><strong>🎯 Pour utiliser UsagiJS sur ton site :</strong></p>
-    <div class="code" style="text-align: center;">
-      &lt;script src="https://alex84010.github.io/usagi-js/usagi.js"&gt;&lt;/script&gt;
+// ==========================
+// 🌿 COMBATS SAUVAGES
+// ==========================
+Usagi.addWildArea("map1",10,5,5,4,["Monstre1","Monstre2","Monstre3","Monstre4"],0.2);
+
+// ==========================
+// ⭐ PNJ CHOIX STARTER
+// ==========================
+Usagi.addNPC("map1",5,6,"npc",["Bonjour! Choisis ton starter."],()=>{
+  if(Usagi.player.team.length===0) showStarterMenu();
+});
+
+// ==========================
+// 🏥 CENTRE DE SOIN
+// ==========================
+Usagi.addNPC("map1",15,6,"npc_nurse","Soigne ton équipe.",()=>Usagi.healTeam());
+
+// ==========================
+// 📋 MENU STARTER
+// ==========================
+function showStarterMenu(){
+  Usagi.ui.innerHTML=`<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:4px solid #000;padding:16px;text-align:center;pointer-events:all;">
+  <h3>Choisis ton starter</h3>
+  <button onclick="pickStarter('Monstre1')">Monstre1 🌱</button><br><br>
+  <button onclick="pickStarter('Monstre2')">Monstre2 🔥</button><br><br>
+  <button onclick="pickStarter('Monstre3')">Monstre3 🪨</button>
+  </div>`;
+  Usagi.showingMenu=true;
+}
+
+window.pickStarter=function(name){
+  Usagi.player.team=[createMonster(name,5)];
+  Usagi.ui.innerHTML="";
+  Usagi.showingMenu=false;
+  Usagi.showDialogue(name+" rejoint ton équipe !");
+};
+
+// ==========================
+// 🗡️ COMBAT SIMPLE
+// ==========================
+Usagi.startBattle=function(monsterName,isWild=true){
+  this.inBattle=true;
+  const enemy=createMonster(monsterName,5);
+  const playerPokemon=this.player.team[0];
+  this.battleData={isWild,playerPokemon,enemy,turn:"player",canCapture:isWild};
+  this.showBattleScreen();
+};
+
+Usagi.showBattleScreen=function(){
+  const p=this.battleData.playerPokemon;
+  const e=this.battleData.enemyPokemon;
+  this.ui.innerHTML=`
+  <div style="width:100%;height:100%;position:absolute;background:linear-gradient(to bottom,#87CEEB 0%,#98D8C8 100%);pointer-events:all;">
+    <div style="position:absolute;top:20%;right:15%;text-align:center;">
+      <div style="font-size:18px;font-weight:bold;color:#333;text-shadow:1px 1px 2px white;">${e.name} Nv.${e.level}</div>
+      <div style="background:#333;width:150px;height:12px;border:2px solid white;margin:10px auto;border-radius:6px;overflow:hidden;">
+        <div style="background:linear-gradient(to right,#4CAF50,#8BC34A);height:100%;width:${e.hp/e.maxHp*100}%;transition:width 0.3s;"></div>
+      </div>
+      <div style="color:#333;font-size:12px;text-shadow:1px 1px 1px white;">${e.hp}/${e.maxHp} PV</div>
+      <div style="font-size:60px;margin-top:10px;">🐲</div>
     </div>
-    <p>C'est tout ! Puis tu codes en UsagiJS 🚀</p>
-  </div>
+    <div style="position:absolute;bottom:35%;left:15%;text-align:center;">
+      <div style="font-size:18px;font-weight:bold;color:#333;text-shadow:1px 1px 2px white;">${p.name} Nv.${p.level}</div>
+      <div style="background:#333;width:150px;height:12px;border:2px solid white;margin:10px auto;border-radius:6px;overflow:hidden;">
+        <div style="background:linear-gradient(to right,#4CAF50,#8BC34A);height:100%;width:${p.hp/p.maxHp*100}%;transition:width 0.3s;"></div>
+      </div>
+      <div style="color:#333;font-size:12px;text-shadow:1px 1px 1px white;">${p.hp}/${p.maxHp} PV</div>
+      <div style="font-size:60px;margin-top:10px;">⚡</div>
+    </div>
+    <div style="position:absolute;bottom:0;left:0;right:0;background:white;border-top:4px solid #333;padding:20px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+        <button onclick="Usagi.battleAttack()">⚔️ ATTAQUER</button>
+        <button onclick="Usagi.battleCapture()">🎯 CAPTURER</button>
+        <button onclick="Usagi.battleItem()">🎒 OBJET</button>
+        <button onclick="Usagi.battleFlee()">🏃 FUIR</button>
+      </div>
+    </div>
+  </div>`;
+};
+
+// ==========================
+// ⚔️ ACTIONS BATAILLE
+// ==========================
+Usagi.battleAttack=function(){
+  const p=this.battleData.playerPokemon;
+  const e=this.battleData.enemyPokemon;
+  const damage=Math.max(1,Math.floor((p.atk*40/e.def)*(0.85+Math.random()*0.15)));
+  e.hp=Math.max(0,e.hp-damage);
+  if(e.hp<=0){return this.endBattle(true);}
+  setTimeout(()=>{
+    const enemyDamage=Math.max(1,Math.floor((e.atk*40/p.def)*(0.85+Math.random()*0.15)));
+    p.hp=Math.max(0,p.hp-enemyDamage);
+    if(p.hp<=0){this.endBattle(false);}
+    else{this.showBattleScreen();}
+  },800);
+  this.showBattleScreen();
+};
+
+Usagi.battleCapture=function(){
+  const e=this.battleData.enemyPokemon;
+  if(Usagi.player.items["pokeball"]<=0){this.showDialogue("Pas de Pokéball !"); return;}
+  Usagi.player.items["pokeball"]--;
+  const rate=(1-e.hp/e.maxHp)*0.7+0.1;
+  if(Math.random()<rate){
+    Usagi.player.team.push({...e,hp:e.maxHp});
+    this.showDialogue(e.name+" a été capturé ! 🎉");
+    setTimeout(()=>this.endBattle(true),1500);
+  }else{
+    this.showDialogue(e.name+" s'est échappé !");
+    setTimeout(()=>{this.closeDialogue(); this.showBattleScreen();},1500);
+  }
+};
+
+Usagi.battleItem=function(){
+  this.showDialogue("Pas d'objet utilisable !");
+  setTimeout(()=>{this.closeDialogue(); this.showBattleScreen();},1000);
+};
+
+Usagi.battleFlee=function(){
+  this.showDialogue("Tu as fui le combat !");
+  setTimeout(()=>this.endBattle(false),1000);
+};
+
+Usagi.endBattle=function(victoire){
+  if(victoire){ 
+    const p=this.player.team[0];
+    p.exp+=10;
+    if(p.exp>=20){p.level++;p.exp=0;p.maxHp+=10;p.atk+=5;p.def+=5;p.hp=p.maxHp;}
+  }
+  setTimeout(()=>{this.inBattle=false;this.closeDialogue();},1000);
+};
+
+  </script>
 </body>
 </html>
+
